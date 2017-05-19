@@ -7,14 +7,14 @@ require('dotenv').config()
 const Discord = require('discord.js');
 const client = new Discord.Client();
 
+// log the logged in account
 client.on('ready', () => {
-  console.log('I am ready!');
+  console.log('\n----------');
+  console.log('Logged in as:');
+  console.log(client.user.username + '#' + client.user.discriminator)
+  console.log(client.user.id);
+  console.log('----------\n');
 });
 
-client.on('message', message => {
-  if (message.content === 'ping') {
-    message.reply('pong');
-  }
-});
-
+// login with token from .env
 client.login(process.env.DISCORD_TOKEN);
