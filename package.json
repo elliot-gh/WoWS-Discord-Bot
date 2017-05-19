@@ -18,6 +18,7 @@
   "homepage": "https://github.com/WhipeeDip/WoWS-Match-Stats-Discord-Bot#readme",
   "dependencies": {
     "chokidar": "^1.7.0",
-    "discord.js": "^11.1.0"
+    "discord.js": "^11.1.0",
+    "dotenv": "^4.0.0"
   }
 }
