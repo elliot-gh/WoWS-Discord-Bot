@@ -1,0 +1,167 @@
+{
+  "clientVersionFromXml": "0, 6, 5, 250745",
+  "gameMode": 7,
+  "clientVersionFromExe": "0, 6, 5, 250745",
+  "mapDisplayName": "15_NE_north",
+  "mapId": 9,
+  "matchGroup": "pvp",
+  "duration": 1200,
+  "gameLogic": "Domination",
+  "name": "12x12",
+  "scenario": "Domination",
+  "playerID": 0,
+  "vehicles": [
+    {
+      "shipId": 4282267344,
+      "relation": 1,
+      "id": 40299,
+      "name": "hammertimess"
+    },
+    {
+      "shipId": 4272830448,
+      "relation": 0,
+      "id": 327813,
+      "name": "WhipeeDip"
+    },
+    {
+      "shipId": 4292818736,
+      "relation": 2,
+      "id": 536921097,
+      "name": "knight751"
+    },
+    {
+      "shipId": 4179539920,
+      "relation": 2,
+      "id": 537050530,
+      "name": "9c1cruiser"
+    },
+    {
+      "shipId": 3762239472,
+      "relation": 2,
+      "id": 52515,
+      "name": "uglyfugger"
+    },
+    {
+      "shipId": 4292818736,
+      "relation": 1,
+      "id": 537173164,
+      "name": "Bladez_Alderion"
+    },
+    {
+      "shipId": 4182652368,
+      "relation": 1,
+      "id": 45359,
+      "name": "Banisher"
+    },
+    {
+      "shipId": 4181636912,
+      "relation": 1,
+      "id": 43187,
+      "name": "whitesnake312"
+    },
+    {
+      "shipId": 4292818736,
+      "relation": 2,
+      "id": 537172023,
+      "name": "Sovereigndawg"
+    },
+    {
+      "shipId": 4075697872,
+      "relation": 2,
+      "id": 537076801,
+      "name": "CDR_Monty"
+    },
+    {
+      "shipId": 4180621104,
+      "relation": 1,
+      "id": 537040579,
+      "name": "LordBeerus48"
+    },
+    {
+      "shipId": 4281317360,
+      "relation": 2,
+      "id": 284356,
+      "name": "Arlock73"
+    },
+    {
+      "shipId": 3762239472,
+      "relation": 1,
+      "id": 238792,
+      "name": "Hungry_hiphopopotamus"
+    },
+    {
+      "shipId": 4277057520,
+      "relation": 2,
+      "id": 246221,
+      "name": "chuky_mexico"
+    },
+    {
+      "shipId": 3761190896,
+      "relation": 2,
+      "id": 536906574,
+      "name": "IslasMalvinasArgentinas"
+    },
+    {
+      "shipId": 4292818736,
+      "relation": 1,
+      "id": 537081427,
+      "name": "Xhiucoatl"
+    },
+    {
+      "shipId": 3971888592,
+      "relation": 2,
+      "id": 537014740,
+      "name": "Hungreywolf"
+    },
+    {
+      "shipId": 4281219056,
+      "relation": 1,
+      "id": 537014746,
+      "name": "Sentry210"
+    },
+    {
+      "shipId": 4281317360,
+      "relation": 1,
+      "id": 296806,
+      "name": "mightymatt84"
+    },
+    {
+      "shipId": 4179539920,
+      "relation": 1,
+      "id": 536942827,
+      "name": "snowman6200"
+    },
+    {
+      "shipId": 4282333168,
+      "relation": 1,
+      "id": 245587,
+      "name": "Sketer_fleet"
+    },
+    {
+      "shipId": 4179506640,
+      "relation": 2,
+      "id": 537098612,
+      "name": "abdul2016"
+    },
+    {
+      "shipId": 4181669680,
+      "relation": 2,
+      "id": 217848,
+      "name": "DKM_TIRPITZ"
+    },
+    {
+      "shipId": 4281219056,
+      "relation": 2,
+      "id": 107898,
+      "name": "usslindstrom"
+    }
+  ],
+  "playersPerTeam": 12,
+  "dateTime": "19.05.2017 22:44:25",
+  "mapName": "spaces/15_NE_north",
+  "playerName": "WhipeeDip",
+  "scenarioConfigId": 68,
+  "teamsCount": 2,
+  "logic": "Domination",
+  "playerVehicle": "PASD021-Fletcher-1943"
+}

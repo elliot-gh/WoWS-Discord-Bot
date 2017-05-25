@@ -3,10 +3,11 @@
  * Description: Contains the functionality to listen for new WowS replay files and check the stats of WoWS players.
  */
 
-var Promise = require('promise');
+var Promise = require('bluebird');
 var request = require('request');
 var chokidar = require('chokidar');
 var Bottleneck = require('bottleneck');
+Bottleneck.prototype.Promise = Promise;
 var wgApiLimiter = new Bottleneck(10, 1000); // WG API limits us to 10 requests/second for client apps
 
 // contains the entirety of the WoWS bot
