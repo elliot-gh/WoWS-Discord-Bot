@@ -14,6 +14,9 @@ client.on('ready', () => {
   console.log(client.user.username + '#' + client.user.discriminator)
   console.log(client.user.id);
   console.log('----------\n');
+
+  // load in wows_bot
+  var wows_bot = require('./wows_bot.js')(client);
 });
 
 // login with token from .env
