@@ -48,10 +48,10 @@ module.exports = function(client) {
   function wgSearchPlayerNameWrapper(playerInfo) {
     return new Promise((resolve, reject) => {
       module.wgSearchPlayerName(playerInfo.name)
-        .then(playerId => {
+        .then((playerId) => {
           resolve([playerInfo, playerId]);
         })
-        .catch(rejectReason => {
+        .catch((rejectReason) => {
           reject([playerInfo, rejectReason]);
         });
     });
