@@ -3,103 +3,103 @@
  * Description: Contains the functionality to listen for new WowS replay files and check the stats of WoWS players.
  */
 
-var Promise = require('bluebird');
-var request = require('request');
-var chokidar = require('chokidar');
-var Bottleneck = require('bottleneck');
+let Promise = require('bluebird');
+let Bottleneck = require('bottleneck');
+let chokidar = require('chokidar');
+let request = require('request');
+
 Bottleneck.prototype.Promise = Promise;
-var wgApiLimiter = new Bottleneck(10, 1000); // WG API limits us to 10 requests/second for client apps
+let wgApiLimiter = new Bottleneck(10, 1000); // WG API limits us to 10 requests/second for client apps
 
 // contains the entirety of the WoWS bot
 // simply require this and pass in the discord.js logged in client
 module.exports = function(client) {
 
   // all vars this module will need
-  var module = {};
-  var arenaJson = {}; // to be filled later
-  const arenaJsonPath = process.env.WOWS_ARENA_JSON + '/tempArenaInfo.json';
-  const wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-  var warshipsTodayApiUrl = '';
-  var wargamingApiUrl = '';
-  var friendlyTeam = [];
-  var enemyTeam = [];
-  var tmpMsg = []; // TODO: remove
+  let module = {};
+  let arenaJson = {}; // to be filled later
+  let arenaJsonPath = process.env.WOWS_ARENA_JSON + '/tempArenaInfo.json';
+  let wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
+  let warshipsTodayApiUrl = '';
+  let wargamingApiUrl = '';
+  let allStats = [];
 
   // searches WG API for a player ID by name
   // limited; see requires above
   module.wgSearchPlayerName = function(playerName) {
-    return wgApiLimiter.schedule(function limitedSearch(limitedName) {
-      return new Promise(function(resolve, reject) {
-        request.get(wargamingApiUrl + 'list/?application_id=' + process.env.WG_API_ID + '&search=' + limitedName, function(error, response, body) {
-          var jsonBody = JSON.parse(body);
+    return wgApiLimiter.schedule((limitedName) => {
+      return new Promise((resolve, reject) => {
+        request.get(wargamingApiUrl + 'list/?application_id=' + process.env.WG_API_ID + '&search=' + limitedName, (error, response, body) => {
+          let jsonBody = JSON.parse(body);
           if(jsonBody.meta.count > 0) { // exists
-            var playerId = jsonBody.data[0].account_id;
-            console.log('Player: ' + limitedName + ', ID: ' + playerId);
-            tmpMsg.push('Player: ' + limitedName + ', ID: ' + playerId); // TODO: remove
+            let playerId = jsonBody.data[0].account_id;
+            console.log('Player: ' + limitedName + '\n    ID: ' + playerId + '\n');
             resolve(playerId);
           } else { // doesn't exist
             console.log('Could not find ' + limitedName + ' through WG\'s API.');
-            resolve(-1); // only rejecting strictly non WG API response errors
+            resolve(-1); // only rejecting strictly non WG API response errors? TODO: figure out errors on all calls
           }
         });
       });
     }, playerName);
   };
 
+  // pass through wrapper needed to maintain variables within for loop
+  function wgSearchPlayerNameWrapper(playerInfo) {
+    return new Promise((resolve, reject) => {
+      module.wgSearchPlayerName(playerInfo.name)
+        .then(playerId => {
+          resolve([playerInfo, playerId]);
+        })
+        .catch(rejectReason => {
+          reject([playerInfo, rejectReason]);
+        });
+    });
+  };
+
   // fetches warships.today data for passed in player ID
   module.warships_today = function(playerId) {
-    return new Promise(function(resolve, reject) {
+    return new Promise((resolve, reject) => {
       // grab stats from warships.today
-      request.get(warshipsTodayApiUrl + 'player/' + playerId + '/current', function(error, response, body) {
-        console.log('Got warships.today info!');
-        resolve(body);
+      request.get(warshipsTodayApiUrl + 'player/' + playerId + '/current', (error, response, body) => {
+        resolve(JSON.parse(body));
       })
     });
   };
 
   // run when match start is detected
-  // reads the tempArenaInfo.json file that is created by wows 
+  // reads the tempArenaInfo.json file that is created by wows
   function processMatch() {
-    var hrStart = process.hrtime();
+    let hrStart = process.hrtime();
 
-    //wowsChannel.send('Detected a match! Loading player stats...');
+    wowsChannel.send('Detected a match! Loading player stats...');
 
     // parse json and build team arrays
-    var statPromises = [];
     arenaJson = require(arenaJsonPath); // blocking operation, but we need to wait anyways
-    for(var vehicleIndex in arenaJson.vehicles) {
-      var player = arenaJson.vehicles[vehicleIndex];
+    let playerAmount = arenaJson.vehicles.length;
+    for(let vehicleIndex in arenaJson.vehicles) {
+      let player = arenaJson.vehicles[vehicleIndex];
 
-      module.wgSearchPlayerName(player.name)
-        .then(function(playerId) {
-          statPromises.push(module.warships_today(playerId));
-        })
-        .catch(function(rejectReason) {
-          //
+      // get ID by name
+      wgSearchPlayerNameWrapper(player)
+        .then((searchResult) => {
+          let playerInfo = searchResult[0];
+          let playerId = searchResult[1];
+
+          // get warships.today stats
+          module.warships_today(playerId)
+            .then((stats) => {
+              allStats.push([playerInfo, playerId, stats]);
+
+              // wait until all stats are retrieved
+              if(allStats.length == playerAmount) {
+                console.log('Finished grabbing all stats!');
+                let hrEnd = process.hrtime(hrStart);
+                console.log('It took ' + hrEnd[0] + '.' + hrEnd[1] + ' seconds to retrieve all warships.today info.');
+              }
+            });
         });
-
-      // TODO: move
-      if(player.relation == 0 || player.relation == 1) { // self or friendly
-        friendlyTeam.push(player);
-      } else if(player.relation == 2) { // enemy
-        enemyTeam.push(player);
-      }
     }
-
-    Promise.all(statPromises).then(function(stats) {
-      console.log(statPromises.length);
-      var newMsg = '';
-      for(var msg in tmpMsg) {
-        newMsg += (msg + '\n');
-      }
-      //wowsChannel.send(newMsg);
-      console.log(newMsg);
-      var hrEnd = process.hrtime(hrStart);
-      //wowsChannel.send('It took ' + hrEnd[1]/1000000000 + ' seconds to retrieve all warships.today info.');
-      console.log('It took ' + hrEnd[1]/1000000000 + ' seconds to retrieve all warships.today info.');
-    }).catch(function(rejectReason) {
-      //
-    });    
   };
 
   // inits the API URLs depending on set region
@@ -129,11 +129,11 @@ module.exports = function(client) {
   initApiUrl();
 
   // watch for tempArenaInfo.json with player info created by wows
-  var watcher = chokidar.watch(arenaJsonPath, {
+  let watcher = chokidar.watch(arenaJsonPath, {
     awaitWriteFinish: {
       stabilityThreshold: 2000,
       pollInterval: 100
     }
   });
-  watcher.on('add', path => processMatch());
+  watcher.on('add', (path) => processMatch());
 }
