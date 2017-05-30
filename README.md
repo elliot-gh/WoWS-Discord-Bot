@@ -3,7 +3,6 @@
 A Discord bot built on [discord.js](https://discord.js.org/) that loads up stats for the players in the current World of Warships match the host is in.
 
 ## Planned Features
-* Chat commands usable in Discord to query stats outside of the game.
 * A seperate listener and bot so that any Discord member can have their stats printed in the channel.
 * Region detection based on set roles.
 * Support other APIs, such as [Warships.Today](https://warships.today/).

@@ -24,37 +24,108 @@ module.exports = function(client) {
 
   // searches WG API for a player ID by name
   // limited amount of requests/second
-  module.wgSearchPlayerName = function(playerName) {
+  module.wgSearchPlayerId = function(playerName) {
     return wgApiLimiter.schedule((playerName) => {
       return new Promise((resolve, reject) => {
         if(playerName === undefined) {
-          reject('Player ID is empty!');
+          reject('Player name is empty!');
+          return;
         }
 
-        // define api params
+        // define API params
         let accountApi = 'account/list/';
         let searchParam = '&search=' + playerName;
 
         request.get(
             wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
             (error, response, body) => {
+          if(error) {
+            console.log('Error while contacting WG API: ' + error);
+            reject('Error while contacting WG API: ' + error);
+            return;
+          }
+
           let jsonBody = JSON.parse(body);
+          if(jsonBody.status === 'error') {
+            console.log('WG API returned the following error: ' + jsonBody.error);
+            reject('WG API returned the following error: ' + jsonBody.error);
+            return;
+          }
+
           if(jsonBody.meta.count > 0) { // exists
             let playerId = jsonBody.data[0].account_id;
             console.log('Player: ' + playerName + '\n    ID: ' + playerId);
             resolve(playerId);
+            return;
+          } else { // no players found
+            console.log(playerName + ' was not found. Check your spelling and try again.');
+            reject(playerName + ' was not found. Check your spelling and try again.');
+            return;
           }
         });
       });
     }, playerName);
   };
 
-  // searches WG API for ship type/name by ID
+  // searches WG API for ship ID by name
+  // limited amount of requests/second 
+  module.wgSearchShipId = function(shipName) {
+    return wgApiLimiter.schedule((shipName) => {
+      return new Promise((resolve, reject) => {
+        if(shipName === undefined) {
+          reject('Ship name is empty!');
+          return;
+        }
+
+        // define API params
+        let encyclopediaApi = 'encyclopedia/ships/';
+        let fieldsParam = '&fields=name';
+
+        request.get(
+            wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam,
+            (error, response, body) => {
+          if(error) {
+            console.log('Error while contacting WG API: ' + error);
+            reject('Error while contacting WG API: ' + error);
+            return;
+          }
+
+          let jsonBody = JSON.parse(body);
+          if(jsonBody.status === 'error') {
+            console.log('WG API returned the following error: ' + jsonBody.error);
+            reject('WG API returned the following error: ' + jsonBody.error);
+            return;
+          }
+
+          let jsonData = jsonBody.data;
+          for(let dataKey in jsonData) {
+            if(jsonData.hasOwnProperty(dataKey)) {
+              if(jsonData[dataKey].name === shipName) {
+                console.log(shipName + ' is ' + dataKey + '.');
+                resolve(dataKey);
+                return;
+              }
+            }
+          }
+
+          console.log(shipName + ' was not found. Check your spelling and try again.');
+          reject(shipName + ' was not found. Check your spelling and try again.');
+          return;
+        });
+      });
+    }, shipName);
+  };
+
+  // searches WG API for ship name by ID
   // limited amount of requests/second
   module.wgSearchShipName = function(shipId) {
     return wgApiLimiter.schedule((shipId) => {
       return new Promise((resolve, reject) => {
-        // define api params
+        if(shipId === undefined) {
+          reject('Ship ID is empty!');
+        }
+
+        // define API params
         let encyclopediaApi = 'encyclopedia/ships/';
         let searchParam = '&ship_id=' + shipId;
         let fieldsParam = '&fields=name';
@@ -62,9 +133,29 @@ module.exports = function(client) {
         request.get(
             wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam,
             (error, response, body) => {
+          if(error) {
+            console.log('Error while contacting WG API: ' + error);
+            reject('Error while contacting WG API: ' + error);
+            return;
+          }
+
           let jsonBody = JSON.parse(body);
-          console.log('Got ship info for ' + shipId + '!');
-          resolve(jsonBody.data[shipId].name);
+          if(jsonBody.status === 'error') {
+            console.log('WG API returned the following error: ' + jsonBody.error);
+            reject('WG API returned the following error: ' + jsonBody.error);
+            return;
+          }
+
+          let shipName = jsonBody.data[shipId].name;
+          if(shipName !== null) {
+            console.log(shipId + ' is ' + shipName + '.');
+            resolve(shipName);
+            return;
+          } else {
+            console.log(shipId + ' was not found. Check the ID and try again.');
+            reject(shipId + ' was not found. Check the ID and try again.');
+            return;
+          }          
         });
       });
     }, shipId);
@@ -77,28 +168,42 @@ module.exports = function(client) {
       return new Promise((resolve, reject) => {
         if(playerId === undefined) {
           reject('Player ID is empty!');
-        } else if(shipId === undefined) {
+        } else if(playerId === undefined) {
           reject('Ship ID is empty!');
         }
 
-        // define api params
+        // define API params
         let shipStatsApi = 'ships/stats/';
         let accountParam = '&account_id=' + playerId;
-        let shipParam = '&ship_id=' + shipId;
         let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
+        let shipParam = '';
+        if(shipId !== undefined) {
+          shipParam = '&ship_id=' + shipId;
+        }
 
         request.get(
             wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
             (error, response, body) => {
-          // get response data
+          if(error) {
+            console.log('Error while contacting WG API: ' + error);
+            reject('Error while contacting WG API: ' + error);
+            return;
+          }
+
           let jsonBody = JSON.parse(body);
+          if(jsonBody.status === 'error') {
+            console.log('WG API returned the following error: ' + jsonBody.error);
+            reject('WG API returned the following error: ' + jsonBody.error);
+            return;
+          }
+
           if(jsonBody.meta.hidden !== null) { // hidden stats
             console.log('Got player stats for ' + playerId + '!');
             resolve('Profile hidden.');
             return;
-          } else if(jsonBody.data === null) { // first battle
+          } else if(jsonBody.data[playerId] === null) { // first battle
             console.log('Got player stats for ' + playerId + '!');
-            resolve('First game.');
+            resolve('First game, or this player does not own this ship.');
             return;
           }
 
@@ -126,6 +231,7 @@ module.exports = function(client) {
 
           console.log('Got player stats for ' + playerId + '!');
           resolve(stats);
+          return;
         });
       });
     }, playerId, shipId);
@@ -150,9 +256,9 @@ module.exports = function(client) {
   }
 
   // pass through wrapper needed to maintain variables within for loop
-  function wgSearchPlayerNameWrapper(playerInfo) {
+  function wgSearchPlayerIdWrapper(playerInfo) {
     return new Promise((resolve, reject) => {
-      module.wgSearchPlayerName(playerInfo.name)
+      module.wgSearchPlayerId(playerInfo.name)
         .then((playerId) => {
           resolve([playerInfo, playerId]);
         })
@@ -193,7 +299,7 @@ module.exports = function(client) {
       let player = arenaJson.vehicles[vehicleIndex];
 
       // get ID by name
-      wgSearchPlayerNameWrapper(player)
+      wgSearchPlayerIdWrapper(player)
         .then((searchResult) => {
           let playerInfo = searchResult[0];
           let playerId = searchResult[1];
@@ -239,7 +345,7 @@ module.exports = function(client) {
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
       throw new Error('WG_MAX_REQUESTS not set!');
     }
-    wgApiLimiter = new Bottleneck(1, 1000 / parseInt(process.env.WG_MAX_REQUESTS));
+    wgApiLimiter = new Bottleneck(1, 1000 / parseInt(process.env.WG_MAX_REQUESTS, 10));
 
     // make sure replay directory was set
     if(process.env.WOWS_REPLAY_FOLDER === undefined || process.env.WOWS_REPLAY_FOLDER === '') {
@@ -290,4 +396,49 @@ module.exports = function(client) {
     }
   });
   watcher.on('add', (path) => processMatch(path));
+
+  // ----- chat commands -----
+
+  // !wgstats [account name] [ship name] will query stats for that player and ship
+  client.on('message', (msg) => {
+    let msgContent = msg.content;
+    if(msgContent.substring(0, 8) !== '!wgstats') {
+      return;
+    }
+
+    console.log();
+    let channel = msg.channel;
+    let msgArray = msgContent.split(' ');
+
+    if(msgArray.length < 3) { // missing args
+      channel.send('**Command failed:** Invalid command format!\n' + 
+          'The command is `!wgstats [account name] [ship name]`.');
+      return;
+    } else if(msgArray.legnth > 3) { // too many
+      channel.send('**Command warning:** Too many arguments.\n' +
+         'Assuming first argument is account name and the second argument is ship mame.');
+    }
+
+    let playerName = msgArray[1];
+    let playerId;
+    let shipName = msgArray[2];
+    let shipId;
+
+    module.wgSearchPlayerId(playerName)
+      .then((tmpPlayerId) => {
+        playerId = tmpPlayerId;
+        return module.wgSearchShipId(shipName);
+      })
+      .then((tmpShipId) => {
+        shipId = tmpShipId;
+        return module.wgStats(playerId, shipId);
+      })
+      .then((stats) => {
+        let msg = module.formatStats(stats, playerName, shipName);
+        channel.send(msg);
+      })
+      .catch((rejectReason) => {
+        channel.send('**Command failed:** ' + rejectReason);
+      });
+  });
 }
