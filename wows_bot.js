@@ -1,32 +1,29 @@
 /*
  * File name: wows_bot.js
- * Description: Contains the functionality to listen for new WowS replay files and check the stats of WoWS players.
+ * Description: Listens for new WowS matches and checks the stats of WoWS players.
  */
 
 let Promise = require('bluebird');
 let Bottleneck = require('bottleneck');
 let chokidar = require('chokidar');
+let fs = require('fs');
 let request = require('request');
-
-Bottleneck.prototype.Promise = Promise;
-let wgApiLimiter = new Bottleneck(1, 100); // WG API limits us to 10 requests/second for client apps
 
 // contains the entirety of the WoWS bot
 // simply require this and pass in the discord.js logged in client
 module.exports = function(client) {
-
-  // all vars this module will need
-  let module = {};
-  let arenaJson = {}; // to be filled later
-  let allMsg = [];
-  let arenaJsonPath = process.env.WOWS_ARENA_JSON + '/tempArenaInfo.json';
-  let wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-  let warshipsTodayApiUrl = '';
-  let wargamingApiUrl = '';
-  let wargamingApiId = '?application_id=' + process.env.WG_API_ID;
+  let module = {}; // the module
+  let wgApiLimiter; // bottleneck for WG API requests
+  let wowsChannel; // the discord channel to send messages in, used by discord.js
+  let arenaJsonPath; // the path to tempArenaInfo.json
+  let wargamingApiUrl; // region specific API URL for wargaming
+  let wargamingApiId; // paramter with wargaming API application ID
+  let arenaJson = {}; // later filled with tempArenaInfo.json 
+  let friendlyMsg = []; // messages for friendly team stats
+  let enemyMsg = []; // messages for enemy team stats
 
   // searches WG API for a player ID by name
-  // limited; see requires above
+  // limited amount of requests/second
   module.wgSearchPlayerName = function(playerName) {
     return wgApiLimiter.schedule((playerName) => {
       return new Promise((resolve, reject) => {
@@ -46,9 +43,6 @@ module.exports = function(client) {
             let playerId = jsonBody.data[0].account_id;
             console.log('Player: ' + playerName + '\n    ID: ' + playerId);
             resolve(playerId);
-          } else { // doesn't exist
-            console.log('Could not find ' + playerName + ' through WG\'s API.');
-            resolve(-1); // only rejecting strictly non WG API response errors? TODO: figure out errors on all calls
           }
         });
       });
@@ -56,7 +50,7 @@ module.exports = function(client) {
   };
 
   // searches WG API for ship type/name by ID
-  // limited; see requires above 
+  // limited amount of requests/second
   module.wgSearchShipName = function(shipId) {
     return wgApiLimiter.schedule((shipId) => {
       return new Promise((resolve, reject) => {
@@ -77,8 +71,7 @@ module.exports = function(client) {
   };
 
   // queries WG API for WoWS player stats
-  // limited; see requires above
-  // TODO: customize options 
+  // limited amoutn of requests/second
   module.wgStats = function(playerId, shipId) {
     return wgApiLimiter.schedule((playerId, shipId) => {
       return new Promise((resolve, reject) => {
@@ -146,11 +139,11 @@ module.exports = function(client) {
       let msg = '**' + playerName + '**: *' + shipName + '*\n' +
                 'Battles: ' + stats.totalBattles + '\n' +
                 'Win Rate: ' + stats.winRate.toFixed(2) + '%\n' +
-                'Average Damage: ' + stats.avgDmg.toFixed(0) + '\n' +
                 'Average XP: ' + stats.avgXp.toFixed(0) + '\n' +
+                'Average Damage: ' + stats.avgDmg.toFixed(0) + '\n' +
                 'Survival Rate: ' + stats.survivalRate.toFixed(2) + '%\n' +
-                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n' +
                 'Average Plane Kills: ' + stats.avgPlaneKills.toFixed(2) + '\n' +
+                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n' +
                 'KD: ' + stats.kd.toFixed(2) + '\n';
       return msg;
     }
@@ -169,6 +162,20 @@ module.exports = function(client) {
     });
   };
 
+  // used for array sorting
+  function caseInsensitiveCompare(string1, string2) {
+    var s1lower = string1.toLowerCase();
+    var s2lower = string2.toLowerCase();
+
+    if(s1lower < s2lower) {
+      return -1;
+    } else if(s1lower > s2lower) {
+      return 1;
+    } else {
+      return 0;
+    }
+  };
+
   // run when match start is detected
   // reads the tempArenaInfo.json file that is created by wows
   function processMatch(path) {
@@ -179,7 +186,8 @@ module.exports = function(client) {
 
     // parse json and build team arrays
     arenaJson = require(arenaJsonPath); // blocking operation, but we need to wait anyways
-    allMsg = [];
+    friendlyMsg = [];
+    enemyMsg = [];
     let playerAmount = arenaJson.vehicles.length;
     for(let vehicleIndex in arenaJson.vehicles) {
       let player = arenaJson.vehicles[vehicleIndex];
@@ -196,13 +204,28 @@ module.exports = function(client) {
               module.wgSearchShipName(playerInfo.shipId)
                 .then((shipName) => {
                   let msg = module.formatStats(stats, playerInfo.name, shipName);
-                  allMsg.push(msg);
+                  if(playerInfo.relation == 0 || playerInfo.relation == 1) {
+                    friendlyMsg.push(msg);
+                  } else {
+                    enemyMsg.push(msg);
+                  }
 
-                  if(allMsg.length == playerAmount) {
-                    allMsg.sort();
-                    for(let msgIndex in allMsg) {
-                      wowsChannel.send(allMsg[msgIndex]);
+                  if(friendlyMsg.length == playerAmount / 2 && enemyMsg.length == playerAmount / 2) {
+                    friendlyMsg.sort((string1, string2) => caseInsensitiveCompare(string1, string2));
+                    enemyMsg.sort((string1, string2) => caseInsensitiveCompare(string1, string2));
+
+                    wowsChannel.send('.\nFriendly Team\n====================');
+                    for(let friendlyIndex in friendlyMsg) {
+                      wowsChannel.send(friendlyMsg[friendlyIndex]);
                     }
+
+                    wowsChannel.send('.\nEnemy Team\n====================');
+                    for(let enemyIndex in enemyMsg) {
+                      wowsChannel.send(enemyMsg[enemyIndex]);
+                    }
+
+                    let hrEnd = process.hrtime(hrStart);
+                    console.log('It took ' + hrEnd[0] + ' seconds to load all stats.\n');
                   }
               });
           });
@@ -210,31 +233,54 @@ module.exports = function(client) {
     }
   };
 
-  // inits the API URLs depending on set region
-  function initApiUrl() {
+  // inits the vars
+  function initBot() {
+    // make sure WG API requests/second limit was set
+    if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
+      throw new Error('WG_MAX_REQUESTS not set!');
+    }
+    wgApiLimiter = new Bottleneck(1, 1000 / parseInt(process.env.WG_MAX_REQUESTS));
+
+    // make sure replay directory was set
+    if(process.env.WOWS_REPLAY_FOLDER === undefined || process.env.WOWS_REPLAY_FOLDER === '') {
+      throw new Error('WOWS_REPLAY_FOLDER was not set!');
+    } else if (!fs.existsSync(process.env.WOWS_REPLAY_FOLDER)) { // make sure directory is valid
+      throw new Error('The directory WOWS_REPLAY_FOLDER does not exist! ' + 
+          'Make sure replays are enabled and/or the replays folder exists.')
+    }
+    arenaJsonPath = process.env.WOWS_REPLAY_FOLDER + 'tempArenaInfo.json';
+
+    // make sure discord channel was set 
+    if(process.env.DEFAULT_WOWS_CHANNEL === undefined || process.env.DEFAULT_WOWS_CHANNEL === '') {
+      throw new Error('DEFAULT_WOWS_CHANNEL was not set!');
+    }
+    wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL)
+
+    // init API URLs
     switch(process.env.WOWS_REGION) {
       case 'na':
-        warshipsTodayApiUrl = 'https://api.na.warships.today/api/';
         wargamingApiUrl = 'https://api.worldofwarships.com/wows/';
         break;
       case 'eu':
-        warshipsTodayApiUrl = 'https://api.eu.warships.today/api/';
-        wargamingApiUrl = 'https://api.worldofwarships.eu/wows/account/';
+        wargamingApiUrl = 'https://api.worldofwarships.eu/wows/';
         break;
       case 'ru':
-        warshipsTodayApiUrl = 'https://api.eu.warships.today/api/';
         wargamingApiUrl = 'https://api.worldofwarships.ru/wows/';
         break;
       case 'asia':
-        warshipsTodayApiUrl = 'https://api.asia.warships.today/api/';
         wargamingApiUrl = 'https://api.worldofwarships.asia/wows/';
         break;
       default:
-        throw new Error('Invalid WOWS_REGION set! It should be "na", "eu", "ru", or "asia", without quotes.');
+        throw new Error('Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.');
         break;
     }
+
+    if(process.env.WG_API_ID === undefined || process.env.WG_API_ID === '') {
+      throw new Error('WG_API_ID was not set!');
+    }
+    wargamingApiId = '?application_id=' + process.env.WG_API_ID;
   };
-  initApiUrl();
+  initBot();
 
   // watch for tempArenaInfo.json with player info created by wows
   let watcher = chokidar.watch(arenaJsonPath, {

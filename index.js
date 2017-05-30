@@ -20,4 +20,7 @@ client.on('ready', () => {
 });
 
 // login with token from .env
+if(process.env.DISCORD_TOKEN === undefined || process.env.DISCORD_TOKEN === '') {
+  throw new Error('DISCORD_TOKEN was not set!');
+}
 client.login(process.env.DISCORD_TOKEN);
