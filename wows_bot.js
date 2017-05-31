@@ -212,7 +212,7 @@ module.exports = function(client) {
           
           // calculate needed data
           let kdTmp; // check for divide by 0
-          if(pvpStats.battles - pvpStats.survived_battles == 0) {
+          if(pvpStats.battles - pvpStats.survived_battles === 0) {
             kdTmp = 'inf';
           } else {
             kdTmp = pvpStats.frags / (pvpStats.battles - pvpStats.survived_battles);
@@ -253,7 +253,7 @@ module.exports = function(client) {
                 'KD: ' + stats.kd.toFixed(2) + '\n';
       return msg;
     }
-  }
+  };
 
   // pass through wrapper needed to maintain variables within for loop
   function wgSearchPlayerIdWrapper(playerInfo) {
@@ -266,7 +266,7 @@ module.exports = function(client) {
           reject([playerInfo, rejectReason]);
         });
     });
-  };
+  }
 
   // used for array sorting
   function caseInsensitiveCompare(string1, string2) {
@@ -280,7 +280,7 @@ module.exports = function(client) {
     } else {
       return 0;
     }
-  };
+  }
 
   // run when match start is detected
   // reads the tempArenaInfo.json file that is created by wows
@@ -337,7 +337,7 @@ module.exports = function(client) {
           });
         });
     }
-  };
+  }
 
   // inits the vars
   function initBot() {
@@ -385,7 +385,7 @@ module.exports = function(client) {
       throw new Error('WG_API_ID was not set!');
     }
     wargamingApiId = '?application_id=' + process.env.WG_API_ID;
-  };
+  }
   initBot();
 
   // watch for tempArenaInfo.json with player info created by wows
@@ -436,9 +436,11 @@ module.exports = function(client) {
       .then((stats) => {
         let msg = module.formatStats(stats, playerName, shipName);
         channel.send(msg);
+        return;
       })
       .catch((rejectReason) => {
         channel.send('**Command failed:** ' + rejectReason);
+        return;
       });
   });
 }
