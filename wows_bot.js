@@ -249,8 +249,13 @@ module.exports = function(client) {
                 'Average Damage: ' + stats.avgDmg.toFixed(0) + '\n' +
                 'Survival Rate: ' + stats.survivalRate.toFixed(2) + '%\n' +
                 'Average Plane Kills: ' + stats.avgPlaneKills.toFixed(2) + '\n' +
-                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n' +
-                'KD: ' + stats.kd.toFixed(2) + '\n';
+                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n';
+      if(typeof stats.kd === 'string') {
+        msg += 'KD: ' + stats.kd + '\n';
+      } else {
+        msg += 'KD: ' + stats.kd.toFixed(2) + '\n';
+      }
+      
       return msg;
     }
   };
@@ -310,13 +315,13 @@ module.exports = function(client) {
               module.wgSearchShipName(playerInfo.shipId)
                 .then((shipName) => {
                   let msg = module.formatStats(stats, playerInfo.name, shipName);
-                  if(playerInfo.relation == 0 || playerInfo.relation == 1) {
+                  if(playerInfo.relation === 0 || playerInfo.relation === 1) {
                     friendlyMsg.push(msg);
                   } else {
                     enemyMsg.push(msg);
                   }
 
-                  if(friendlyMsg.length == playerAmount / 2 && enemyMsg.length == playerAmount / 2) {
+                  if(friendlyMsg.length === playerAmount / 2 && enemyMsg.length === playerAmount / 2) {
                     friendlyMsg.sort((string1, string2) => caseInsensitiveCompare(string1, string2));
                     enemyMsg.sort((string1, string2) => caseInsensitiveCompare(string1, string2));
 
@@ -352,7 +357,7 @@ module.exports = function(client) {
       throw new Error('WOWS_REPLAY_FOLDER was not set!');
     } else if (!fs.existsSync(process.env.WOWS_REPLAY_FOLDER)) { // make sure directory is valid
       throw new Error('The directory WOWS_REPLAY_FOLDER does not exist! ' + 
-          'Make sure replays are enabled and/or the replays folder exists.')
+          'Make sure replays are enabled and/or the replays folder exists.');
     }
     arenaJsonPath = process.env.WOWS_REPLAY_FOLDER + 'tempArenaInfo.json';
 
@@ -360,7 +365,7 @@ module.exports = function(client) {
     if(process.env.DEFAULT_WOWS_CHANNEL === undefined || process.env.DEFAULT_WOWS_CHANNEL === '') {
       throw new Error('DEFAULT_WOWS_CHANNEL was not set!');
     }
-    wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL)
+    wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
 
     // init API URLs
     switch(process.env.WOWS_REGION) {
@@ -378,7 +383,7 @@ module.exports = function(client) {
         break;
       default:
         throw new Error('Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.');
-        break;
+        // no break needed
     }
 
     if(process.env.WG_API_ID === undefined || process.env.WG_API_ID === '') {
@@ -389,13 +394,13 @@ module.exports = function(client) {
   initBot();
 
   // watch for tempArenaInfo.json with player info created by wows
-  let watcher = chokidar.watch(arenaJsonPath, {
-    awaitWriteFinish: {
-      stabilityThreshold: 2000,
-      pollInterval: 100
-    }
-  });
-  watcher.on('add', (path) => processMatch(path));
+  // let watcher = chokidar.watch(arenaJsonPath, {
+  //   awaitWriteFinish: {
+  //     stabilityThreshold: 2000,
+  //     pollInterval: 100
+  //   }
+  // });
+  // watcher.on('add', (path) => processMatch(path));
 
   // ----- chat commands -----
 
@@ -406,7 +411,6 @@ module.exports = function(client) {
       return;
     }
 
-    console.log();
     let channel = msg.channel;
     let msgArray = msgContent.split(' ');
 
@@ -443,4 +447,4 @@ module.exports = function(client) {
         return;
       });
   });
-}
+};
