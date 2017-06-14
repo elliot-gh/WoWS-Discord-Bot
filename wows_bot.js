@@ -99,12 +99,13 @@ module.exports = function(client) {
 
           let jsonData = jsonBody.data;
           for(let dataKey in jsonData) {
-            if(jsonData.hasOwnProperty(dataKey)) {
-              if(jsonData[dataKey].name === shipName) {
-                console.log(shipName + ' is ' + dataKey + '.');
-                resolve(dataKey);
-                return;
-              }
+            if(!jsonData.hasOwnProperty(dataKey)) {
+              continue;
+            }
+            if(jsonData[dataKey].name === shipName) {
+              console.log(shipName + ' is ' + dataKey + '.');
+              resolve(dataKey);
+              return;
             }
           }
 
@@ -255,7 +256,7 @@ module.exports = function(client) {
       } else {
         msg += 'KD: ' + stats.kd.toFixed(2) + '\n';
       }
-      
+
       return msg;
     }
   };
@@ -301,6 +302,10 @@ module.exports = function(client) {
     enemyMsg = [];
     let playerAmount = arenaJson.vehicles.length;
     for(let vehicleIndex in arenaJson.vehicles) {
+      if(!arenaJson.vehicles.hasOwnProperty(vehicleIndex)) {
+        continue;
+      }
+
       let player = arenaJson.vehicles[vehicleIndex];
 
       // get ID by name
@@ -327,11 +332,17 @@ module.exports = function(client) {
 
                     wowsChannel.send('.\nFriendly Team\n====================');
                     for(let friendlyIndex in friendlyMsg) {
+                      if(!friendlyMsg.hasOwnProperty(friendlyIndex)) {
+                        continue;
+                      }
                       wowsChannel.send(friendlyMsg[friendlyIndex]);
                     }
 
                     wowsChannel.send('.\nEnemy Team\n====================');
                     for(let enemyIndex in enemyMsg) {
+                      if(!enemyMsg.hasOwnProperty(enemyIndex)) {
+                        continue;
+                      }
                       wowsChannel.send(enemyMsg[enemyIndex]);
                     }
 
@@ -394,13 +405,13 @@ module.exports = function(client) {
   initBot();
 
   // watch for tempArenaInfo.json with player info created by wows
-  // let watcher = chokidar.watch(arenaJsonPath, {
-  //   awaitWriteFinish: {
-  //     stabilityThreshold: 2000,
-  //     pollInterval: 100
-  //   }
-  // });
-  // watcher.on('add', (path) => processMatch(path));
+  let watcher = chokidar.watch(arenaJsonPath, {
+    awaitWriteFinish: {
+      stabilityThreshold: 2000,
+      pollInterval: 100
+    }
+  });
+  watcher.on('add', (path) => processMatch(path));
 
   // ----- chat commands -----
 
