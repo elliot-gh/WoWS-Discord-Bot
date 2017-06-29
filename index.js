@@ -3,7 +3,7 @@
  * Description: Main file for this bot.
  */
 
-require('dotenv').config()
+require('dotenv').config();
 const Discord = require('discord.js');
 const client = new Discord.Client();
 
@@ -11,7 +11,7 @@ const client = new Discord.Client();
 client.on('ready', () => {
   console.log('\n----------');
   console.log('Logged in as:');
-  console.log(client.user.username + '#' + client.user.discriminator)
+  console.log(client.user.username + '#' + client.user.discriminator);
   console.log(client.user.id);
   console.log('----------\n');
 
