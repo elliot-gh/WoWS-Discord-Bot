@@ -293,11 +293,13 @@ module.exports = function(client) {
   function processMatch(path) {
     let hrStart = process.hrtime();
 
-    console.log('Loading file ' + path + '...');
+    fs.writeFileSync('./tempArenaJson2.json', fs.readFileSync(path));
+
+    console.log('Loading file /tempArenaJson2.json...');
     wowsChannel.send('Detected a match! Loading player stats...');
 
     // parse json and build team arrays
-    arenaJson = require(arenaJsonPath); // blocking operation, but we need to wait anyways
+    arenaJson = require('./tempArenaJson2.json'); // blocking operation, but we need to wait anyways
     friendlyMsg = [];
     enemyMsg = [];
     let playerAmount = arenaJson.vehicles.length;
@@ -357,6 +359,14 @@ module.exports = function(client) {
 
   // inits the vars
   function initBot() {
+    client.user.setPresence({
+      'status': 'online',
+      'afk': false,
+      'game': {
+        'name': '!wgstats [user] [ship]'
+      }
+    });
+
     // make sure WG API requests/second limit was set
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
       throw new Error('WG_MAX_REQUESTS not set!');
@@ -405,13 +415,13 @@ module.exports = function(client) {
   initBot();
 
   // watch for tempArenaInfo.json with player info created by wows
-  let watcher = chokidar.watch(arenaJsonPath, {
-    awaitWriteFinish: {
-      stabilityThreshold: 2000,
-      pollInterval: 100
-    }
-  });
-  watcher.on('add', (path) => processMatch(path));
+  // let watcher = chokidar.watch(arenaJsonPath, {
+  //   awaitWriteFinish: {
+  //     stabilityThreshold: 2000,
+  //     pollInterval: 100
+  //   }
+  // });
+  // watcher.on('add', (path) => processMatch(path)); // TODO: seems to hang wows loading
 
   // ----- chat commands -----
 
@@ -429,15 +439,21 @@ module.exports = function(client) {
       channel.send('**Command failed:** Invalid command format!\n' + 
           'The command is `!wgstats [account name] [ship name]`.');
       return;
-    } else if(msgArray.legnth > 3) { // too many
-      channel.send('**Command warning:** Too many arguments.\n' +
-         'Assuming first argument is account name and the second argument is ship mame.');
+    } else if(msgArray.length > 3) { // POSSIBLY too many
+      channel.send('**Command warning:** Possibly too many arguments.\n' +
+         'Assuming first argument is account name and the rest are part of the ship name.');
     }
 
-    let playerName = msgArray[1];
     let playerId;
-    let shipName = msgArray[2];
+    let playerName = msgArray[1];
     let shipId;
+    let shipName = '';
+    for(let msgIndex = 2; msgIndex < msgArray.length; msgIndex++) {
+      shipName += msgArray[msgIndex];
+      if(msgIndex !== msgArray.length - 1) {
+        shipName += ' ';
+      }
+    }
 
     module.wgSearchPlayerId(playerName)
       .then((tmpPlayerId) => {
