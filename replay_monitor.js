@@ -6,10 +6,11 @@
 let Promise = require('bluebird');
 let chokidar = require('chokidar');
 let fs = require('fs');
+let utilsStats = require('./utils_stats/js');
 let wgApi = require('./wg_api.js');
 
 // monitors replay being made when game starts
-// require this
+// just require() this
 module.exports = function(wowsChannel) {
   let arenaJsonPath; // the path to tempArenaInfo.json
   let arenaJson = {}; // later filled with tempArenaInfo.json 
@@ -63,7 +64,7 @@ module.exports = function(wowsChannel) {
 
               wgApi.wgSearchShipName(playerInfo.shipId)
                 .then((shipName) => {
-                  let msg = module.formatStats(stats, playerInfo.name, shipName);
+                  let msg = utilsStats.formatStats(stats, playerInfo.name, shipName);
                   if(playerInfo.relation === 0 || playerInfo.relation === 1) {
                     friendlyMsg.push(msg);
                   } else {

@@ -6,35 +6,13 @@
 let Promise = require('bluebird');
 let wgApi = require('./wg_api.js')();
 let replayMonitor;
+let utilsStats = require('./utils_stats.js')();
 
 // contains the Discord bot
-// require this and pass in the discord.js logged in client
+// require() this and pass in the discord.js logged in client
 module.exports = function(client) {
+  let module = {};
   let wowsChannel; // the discord channel to send messages in, used by discord.js
-
-  // format stats into something readable
-  // TODO: probably need to move this
-  function formatStats(stats, playerName, shipName) {
-    if(typeof stats === 'string') { // hidden or some kind of error
-      return '**' + playerName + '**: *' + shipName + '*\n' + stats;
-    } else { // JSON
-      let msg = '**' + playerName + '**: *' + shipName + '*\n' +
-                'Battles: ' + stats.totalBattles + '\n' +
-                'Win Rate: ' + stats.winRate.toFixed(2) + '%\n' +
-                'Average XP: ' + stats.avgXp.toFixed(0) + '\n' +
-                'Average Damage: ' + stats.avgDmg.toFixed(0) + '\n' +
-                'Survival Rate: ' + stats.survivalRate.toFixed(2) + '%\n' +
-                'Average Plane Kills: ' + stats.avgPlaneKills.toFixed(2) + '\n' +
-                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n';
-      if(typeof stats.kd === 'string') {
-        msg += 'KD: ' + stats.kd + '\n';
-      } else {
-        msg += 'KD: ' + stats.kd.toFixed(2) + '\n';
-      }
-
-      return msg;
-    }
-  };
 
   // inits the vars
   function initBot() {
@@ -84,17 +62,19 @@ module.exports = function(client) {
       }
     }
 
+    let actualName;
     wgApi.wgSearchPlayerId(playerName)
       .then((tmpPlayerId) => {
         playerId = tmpPlayerId;
         return wgApi.wgSearchShipId(shipName);
       })
-      .then((tmpShipId) => {
-        shipId = tmpShipId;
+      .then((tmpShipIdResult) => {
+        shipId = tmpShipIdResult.id;
+        actualName = tmpShipIdResult.name;
         return wgApi.wgStats(playerId, shipId);
       })
       .then((stats) => {
-        let msg = formatStats(stats, playerName, shipName);
+        let msg = utilsStats.formatStats(stats, playerName, actualName);
         channel.send(msg);
         return;
       })
@@ -103,4 +83,6 @@ module.exports = function(client) {
         return;
       });
   });
+
+  return module;
 };

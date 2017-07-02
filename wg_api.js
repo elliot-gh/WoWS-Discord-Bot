@@ -6,9 +6,10 @@
 let Promise = require('bluebird');
 let Bottleneck = require('bottleneck');
 let request = require('request');
+let utilsStats = require('./utils_stats.js')();
 
 // contains the WG API functions
-// require this
+// just require() this
 module.exports = function() {
   let module = {}; // the module
   let wgApiLimiter; // bottleneck for WG API requests
@@ -85,8 +86,10 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
-            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            console.log('WG API returned the following error: ' 
+                        + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            reject('WG API returned the following error: ' 
+                    + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
             return;
           }
 
@@ -95,9 +98,13 @@ module.exports = function() {
             if(!jsonData.hasOwnProperty(dataKey)) {
               continue;
             }
-            if(jsonData[dataKey].name === shipName) {
-              console.log(shipName + ' is ' + dataKey + '.');
-              resolve(dataKey);
+            let actualShipName = jsonData[dataKey].name;
+            if(utilsStats.levenshteinDistance(shipName, actualShipName) <= 2) { // TODO: figure out better magic number
+              console.log(actualShipName + ' is ' + dataKey + '.');
+              resolve({
+                'name': actualShipName,
+                'id': dataKey
+              });
               return;
             }
           }
@@ -156,7 +163,7 @@ module.exports = function() {
   };
 
   // queries WG API for WoWS player stats
-  // limited amoutn of requests/second
+  // limited amount of requests/second
   module.wgStats = function(playerId, shipId) {
     return wgApiLimiter.schedule((playerId, shipId) => {
       return new Promise((resolve, reject) => {
