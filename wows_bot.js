@@ -13,6 +13,7 @@ module.exports = function(client) {
   let wowsChannel; // the discord channel to send messages in, used by discord.js
 
   // format stats into something readable
+  // TODO: probably need to move this
   function formatStats(stats, playerName, shipName) {
     if(typeof stats === 'string') { // hidden or some kind of error
       return '**' + playerName + '**: *' + shipName + '*\n' + stats;

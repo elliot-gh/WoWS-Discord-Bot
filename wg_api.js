@@ -40,8 +40,8 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error);
-            reject('WG API returned the following error: ' + jsonBody.error);
+            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
             return;
           }
 
@@ -85,8 +85,8 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error);
-            reject('WG API returned the following error: ' + jsonBody.error);
+            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
             return;
           }
 
@@ -135,8 +135,8 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error);
-            reject('WG API returned the following error: ' + jsonBody.error);
+            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
             return;
           }
 
@@ -186,8 +186,8 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error);
-            reject('WG API returned the following error: ' + jsonBody.error);
+            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
             return;
           }
 
