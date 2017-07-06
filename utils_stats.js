@@ -31,7 +31,7 @@ module.exports = function() {
     }
   };
 
-  // calculates Levenshtein Distance
+  // calculates Levenshtein distance
   // most of this implementation copied from Andrei Mackenzie under the MIT License.
   // working link as of this commit: https://gist.github.com/andrei-m/982927
   module.levenshteinDistance = function(input, actual) {
@@ -74,6 +74,20 @@ module.exports = function() {
     }
 
     return matrix[actual.length][input.length];
+  };
+
+  // used for array sorting
+  module.caseInsensitiveCompare = function(string1, string2) {
+    var s1lower = string1.toLowerCase();
+    var s2lower = string2.toLowerCase();
+
+    if(s1lower < s2lower) {
+      return -1;
+    } else if(s1lower > s2lower) {
+      return 1;
+    } else {
+      return 0;
+    }
   };
 
   return module;

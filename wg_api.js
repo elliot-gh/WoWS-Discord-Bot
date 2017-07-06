@@ -18,7 +18,7 @@ module.exports = function() {
 
   // searches WG API for a player ID by name
   // limited amount of requests/second
-  module.wgSearchPlayerId = function(playerName) {
+  module.searchPlayerId = function(playerName) {
     return wgApiLimiter.schedule((playerName) => {
       return new Promise((resolve, reject) => {
         if(playerName === undefined) {
@@ -65,7 +65,7 @@ module.exports = function() {
 
   // searches WG API for ship ID by name
   // limited amount of requests/second 
-  module.wgSearchShipId = function(shipName) {
+  module.searchShipId = function(shipName) {
     return wgApiLimiter.schedule((shipName) => {
       return new Promise((resolve, reject) => {
         if(shipName === undefined) {
@@ -146,7 +146,7 @@ module.exports = function() {
 
   // searches WG API for ship name by ID
   // limited amount of requests/second
-  module.wgSearchShipName = function(shipId) {
+  module.searchShipName = function(shipId) {
     return wgApiLimiter.schedule((shipId) => {
       return new Promise((resolve, reject) => {
         if(shipId === undefined) {
@@ -193,7 +193,7 @@ module.exports = function() {
 
   // queries WG API for WoWS player stats
   // limited amount of requests/second
-  module.wgStats = function(playerId, shipId) {
+  module.stats = function(playerId, shipId) {
     return wgApiLimiter.schedule((playerId, shipId) => {
       return new Promise((resolve, reject) => {
         if(playerId === undefined) {
@@ -274,19 +274,6 @@ module.exports = function() {
         });
       });
     }, playerId, shipId);
-  };
-
-  // pass through wrapper needed to maintain variables within for loop
-  module.wgSearchPlayerIdWrapper = function(playerInfo) {
-    return new Promise((resolve, reject) => {
-      module.wgSearchPlayerId(playerInfo.name)
-        .then((playerId) => {
-          resolve([playerInfo, playerId]);
-        })
-        .catch((rejectReason) => {
-          reject([playerInfo, rejectReason]);
-        });
-    });
   };
 
   // init bot

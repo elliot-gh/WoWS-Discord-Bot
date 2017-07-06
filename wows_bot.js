@@ -29,7 +29,7 @@ module.exports = function(client) {
       throw new Error('DEFAULT_WOWS_CHANNEL was not set!');
     }
     wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-    // replayMonitor = require('./replay_monitor.js')(wowsChannel); FIXME: hanging WoWS load
+    replayMonitor = require('./replay_monitor.js')(wowsChannel); // FIXME: hanging WoWS load
   }
   initBot();
 
@@ -63,16 +63,16 @@ module.exports = function(client) {
       let shipId;
       let actualName;
       let searchMessage;
-      wgApi.wgSearchPlayerId(playerName)
+      wgApi.searchPlayerId(playerName)
         .then((tmpPlayerId) => {
           playerId = tmpPlayerId;
-          return wgApi.wgSearchShipId(shipName);
+          return wgApi.searchShipId(shipName);
         })
         .then((tmpShipIdResult) => {
           shipId = tmpShipIdResult.id;
           actualName = tmpShipIdResult.name;
           searchMessage = tmpShipIdResult.message;
-          return wgApi.wgStats(playerId, shipId);
+          return wgApi.stats(playerId, shipId);
         })
         .then((stats) => {
           let msg = utilsStats.formatStats(stats, playerName, actualName);
