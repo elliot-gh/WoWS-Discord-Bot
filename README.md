@@ -24,7 +24,14 @@ Quotes, starting with the pound sign(#), are ignored lines.
 * `WOWS_REGION`: The server region you play in for World of Warships. Valid options are `na`, `eu`, `ru`, or `asia`.
 * `WOWS_REPLAY_FOLDER`: The directory to your World of Warships replay folder. Replays are disabled by default. To enable them, follow the instructions [here](https://na.wargaming.net/support/kb/articles/517). Make sure you leave a slash at the end of the path. (For example, `/mnt/c/Games/World_of_Warships/replays/`).
 
+## Known Bugs
+* The replay watcher and monitor will hang World of Warships when entering a match. Until I can figure out why this happens, this functionality is disabled.
+* On rare occasions, the stats returned will be filled with 0s/NaNs/infs. I'm not aware what causes this bug yet, as I personally have not encountered it live (but other people on my Discord server have). I've tried to implement a fix, but it is untested.
+
 ## Credits
+* [Andrei Mackenzie's Levenshtein distance algorithm (MIT License)](https://gist.github.com/andrei-m/982927)
+
+Node.js Libraries:
 * [bluebird](http://bluebirdjs.com/)
 * [bottleneck](https://github.com/SGrondin/bottleneck)
 * [chokidar](https://github.com/paulmillr/chokidar)
