@@ -16,7 +16,7 @@ A Discord bot built on [discord.js](https://discord.js.org/) that loads up stats
 
 ## .env Configuration
 ### <a name="env-configuration"></a>
-Quotes, starting with the pound sign(#), are ignored lines.
+Comments, starting with the pound sign `#`, are ignored.
 * `DEFAULT_WOWS_CHANNEL`: The channel your bot will send stat messages in. Omit the pound sign.
 * `DISCORD_TOKEN`: A Discord bot token used by your bot to login. Get one from [here](https://discordapp.com/developers/applications/).
 * `WG_API_ID`: The API ID used by your bot to use the WGI API. Get one from [here](https://developers.wargaming.net/applications/).
