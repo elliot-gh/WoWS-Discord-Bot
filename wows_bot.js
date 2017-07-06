@@ -29,7 +29,7 @@ module.exports = function(client) {
       throw new Error('DEFAULT_WOWS_CHANNEL was not set!');
     }
     wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-    // replayMonitor = require('./replay_monitor.js')(wowsChannel); TODO: hanging WoWS load
+    // replayMonitor = require('./replay_monitor.js')(wowsChannel); FIXME: hanging WoWS load
   }
   initBot();
 

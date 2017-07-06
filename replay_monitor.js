@@ -54,6 +54,7 @@ module.exports = function(wowsChannel) {
       let player = arenaJson.vehicles[vehicleIndex];
 
       // get ID by name
+      // TODO: figure out more elegant way to do this
       wgApi.wgSearchPlayerIdWrapper(player)
         .then((searchResult) => {
           let playerInfo = searchResult[0];
@@ -124,5 +125,5 @@ module.exports = function(wowsChannel) {
       pollInterval: 100
     }
   });
-  watcher.on('add', (path) => processMatch(path)); // TODO: seems to hang wows loading
+  watcher.on('add', (path) => processMatch(path)); // FIXME: seems to hang wows loading
 };
