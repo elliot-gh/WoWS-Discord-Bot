@@ -29,7 +29,7 @@ module.exports = function(wowsChannel) {
     } else {
       return 0;
     }
-  };
+  }
 
   // run when match start is detected
   // reads the tempArenaInfo.json file that is created by wows
@@ -98,7 +98,7 @@ module.exports = function(wowsChannel) {
           });
         });
     }
-  };
+  }
 
   // init replay monitor
   function initReplayMonitor() {
@@ -110,11 +110,15 @@ module.exports = function(wowsChannel) {
           'Make sure replays are enabled and/or the replays folder exists.');
     }
     arenaJsonPath = process.env.WOWS_REPLAY_FOLDER + 'tempArenaInfo.json';
-  };
+  }
   initReplayMonitor();
 
   // watch for tempArenaInfo.json with player info created by wows
   let watcher = chokidar.watch(arenaJsonPath, {
+    usePolling: {
+      interval: 100,
+      binaryInterval: 300
+    },
     awaitWriteFinish: {
       stabilityThreshold: 2000,
       pollInterval: 100

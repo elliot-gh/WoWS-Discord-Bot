@@ -59,7 +59,7 @@ module.exports = function() {
       matrix[0][inputIndex] = inputIndex;
     }
 
-    // Fill in the rest of the matrix
+    // fill in the rest of the matrix
     for(actualIndex = 1; actualIndex <= actual.length; actualIndex++) {
       for(inputIndex = 1; inputIndex <= input.length; inputIndex++) {
         if(actual.charAt(actualIndex - 1) === input.charAt(inputIndex - 1)) {

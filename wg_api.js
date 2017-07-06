@@ -30,7 +30,7 @@ module.exports = function() {
         let accountApi = 'account/list/';
         let searchParam = '&search=' + playerName;
 
-        request.get(
+        request.get( // search for a player name
             wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
             (error, response, body) => {
           if(error) {
@@ -41,8 +41,10 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
-            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            console.log('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -75,7 +77,7 @@ module.exports = function() {
         let encyclopediaApi = 'encyclopedia/ships/';
         let fieldsParam = '&fields=name';
 
-        request.get(
+        request.get( // retrieve a list of all ships
             wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam,
             (error, response, body) => {
           if(error) {
@@ -87,28 +89,53 @@ module.exports = function() {
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
             console.log('WG API returned the following error: ' 
-                        + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
             reject('WG API returned the following error: ' 
-                    + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
+          let topResult = {};
+          let topResultDist = -1;
           let jsonData = jsonBody.data;
-          for(let dataKey in jsonData) {
+          for(let dataKey in jsonData) { // iterate through everey ship
             if(!jsonData.hasOwnProperty(dataKey)) {
               continue;
             }
+
             let actualShipName = jsonData[dataKey].name;
-            if(utilsStats.levenshteinDistance(shipName, actualShipName) <= 2) { // TODO: figure out better magic number
+            if(shipName === actualShipName) { // identical names
               console.log(actualShipName + ' is ' + dataKey + '.');
               resolve({
                 'name': actualShipName,
-                'id': dataKey
+                'id': dataKey,
+                'message': ''
               });
               return;
+            } 
+
+            // use the lowest Levenshtein Distance
+            let levDist = utilsStats.levenshteinDistance(shipName, actualShipName);
+            if(topResultDist === -1 || levDist <= topResultDist) {
+              topResultDist = levDist;
+              topResult =  {
+                'name': actualShipName,
+                'id': dataKey
+              };
             }
           }
 
+          if(topResultDist !== -1) {
+            console.log(topResult.name + ' is ' + topResult.id + '.');
+            resolve({
+              'name': topResult.name,
+              'id': topResult.id,
+              'message': 'An exact ship name match was not found; showing the closest result.',
+            });
+            return;
+          }
+
+          // this is now probably never going to be reached
           console.log(shipName + ' was not found. Check your spelling and try again.');
           reject(shipName + ' was not found. Check your spelling and try again.');
           return;
@@ -142,8 +169,10 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
-            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            console.log('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -176,13 +205,14 @@ module.exports = function() {
         // define API params
         let shipStatsApi = 'ships/stats/';
         let accountParam = '&account_id=' + playerId;
-        let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
+        let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, ' 
+            + 'pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
         let shipParam = '';
         if(shipId !== undefined) {
           shipParam = '&ship_id=' + shipId;
         }
 
-        request.get(
+        request.get( // grab specific player stats
             wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
             (error, response, body) => {
           if(error) {
@@ -193,8 +223,10 @@ module.exports = function() {
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
-            reject('WG API returned the following error: ' + jsonBody.error['code'] + ' ' + jsonBody.error['message']);
+            console.log('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject('WG API returned the following error: ' 
+                + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -202,7 +234,13 @@ module.exports = function() {
             console.log('Got player stats for ' + playerId + '!');
             resolve('Profile hidden.');
             return;
-          } else if(jsonBody.data[playerId] === null) { // first battle
+          } 
+          // first battle
+          // the reason why we are checking the battles field as well is because for some reason
+          // the API will either randomly return 0'd data or something is buggy below. 
+          // I'm never around when someone queries stats and this returns 0s/infs.
+          // TODO: figure that bug out
+          else if(jsonBody.data[playerId] === null || jsonBody.data[playerId].battles === 0) {
             console.log('Got player stats for ' + playerId + '!');
             resolve('First game, or this player does not own this ship.');
             return;
@@ -282,7 +320,7 @@ module.exports = function() {
       throw new Error('WG_API_ID was not set!');
     }
     wargamingApiId = '?application_id=' + process.env.WG_API_ID;
-  };
+  }
   initWgApis();
 
   return module;

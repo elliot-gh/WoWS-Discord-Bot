@@ -5,8 +5,8 @@
 
 let Promise = require('bluebird');
 let wgApi = require('./wg_api.js')();
-let replayMonitor;
 let utilsStats = require('./utils_stats.js')();
+let replayMonitor;
 
 // contains the Discord bot
 // require() this and pass in the discord.js logged in client
@@ -34,54 +34,65 @@ module.exports = function(client) {
   initBot();
 
   // ----- chat commands -----
-
-  // !wgstats [account name] [ship name] will query stats for that player and ship
   client.on('message', (msg) => {
     let msgContent = msg.content;
-    if(msgContent.substring(0, 8) !== '!wgstats') {
-      return;
-    }
 
-    let channel = msg.channel;
-    let msgArray = msgContent.split(' ');
+    // !wgstats [account name] [ship name] will query stats for that player and ship
+    if(msgContent.substring(0, 8) === '!wgstats') {
+      console.log('\n' + msgContent);
 
-    if(msgArray.length < 3) { // missing args
-      channel.send('**Command failed:** Invalid command format!\n' + 
-          'The command is `!wgstats [account name] [ship name]`.');
-      return;
-    }
+      let channel = msg.channel;
+      let msgArray = msgContent.split(' ');
 
-    let playerId;
-    let playerName = msgArray[1];
-    let shipId;
-    let shipName = '';
-    for(let msgIndex = 2; msgIndex < msgArray.length; msgIndex++) {
-      shipName += msgArray[msgIndex];
-      if(msgIndex !== msgArray.length - 1) {
-        shipName += ' ';
+      if(msgArray.length < 3) { // missing args
+        channel.send('**Command failed:** Invalid command format!\n' + 
+            'The command is `!wgstats [account name] [ship name]`.');
+        return;
       }
+
+      let playerName = msgArray[1];
+      let shipName = '';
+      for(let msgIndex = 2; msgIndex < msgArray.length; msgIndex++) {
+        shipName += msgArray[msgIndex];
+        if(msgIndex !== msgArray.length - 1) {
+          shipName += ' ';
+        }
+      }
+
+      let playerId;
+      let shipId;
+      let actualName;
+      let searchMessage;
+      wgApi.wgSearchPlayerId(playerName)
+        .then((tmpPlayerId) => {
+          playerId = tmpPlayerId;
+          return wgApi.wgSearchShipId(shipName);
+        })
+        .then((tmpShipIdResult) => {
+          shipId = tmpShipIdResult.id;
+          actualName = tmpShipIdResult.name;
+          searchMessage = tmpShipIdResult.message;
+          return wgApi.wgStats(playerId, shipId);
+        })
+        .then((stats) => {
+          let msg = utilsStats.formatStats(stats, playerName, actualName);
+          let warning = '';
+          if(searchMessage !== '') {
+            warning = '**Command warning:** ' + searchMessage;
+          }
+          
+          channel.send(warning + '\n' + msg);
+          return;
+        })
+        .catch((rejectReason) => {
+          channel.send('**Command failed:** ' + rejectReason);
+          return;
+        });
+
+      return;
     }
 
-    let actualName;
-    wgApi.wgSearchPlayerId(playerName)
-      .then((tmpPlayerId) => {
-        playerId = tmpPlayerId;
-        return wgApi.wgSearchShipId(shipName);
-      })
-      .then((tmpShipIdResult) => {
-        shipId = tmpShipIdResult.id;
-        actualName = tmpShipIdResult.name;
-        return wgApi.wgStats(playerId, shipId);
-      })
-      .then((stats) => {
-        let msg = utilsStats.formatStats(stats, playerName, actualName);
-        channel.send(msg);
-        return;
-      })
-      .catch((rejectReason) => {
-        channel.send('**Command failed:** ' + rejectReason);
-        return;
-      });
+    return;
   });
 
   return module;
