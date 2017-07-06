@@ -2,13 +2,15 @@
 
 A Discord bot built on [discord.js](https://discord.js.org/) that loads up stats for the players in the current World of Warships match the host is in.
 
+This is currently under active development, and thus there will be issues.
+
 ## Planned Features
 * A seperate listener and bot so that any Discord member can have their stats printed in the channel.
 * Region detection based on set roles.
 * Support other APIs, such as [Warships.Today](https://warships.today/).
 
 ## Setup
-1. Download [Node.js](https://nodejs.org/). This has developed and tested on v6.10.3 LTS.
+1. Download [Node.js](https://nodejs.org/). This has been developed and tested on v6.11.0 LTS. Non LTS versions are not guaranteed to work.
 2. Download this repository as a zip, and extract somewhere.
 3. Fill in the .env file with your information. Check the [.env Configuration](#env-configuration) section for more details.
 4. In a terminal in the directory of the extracted folder, simply start the bot with `node index.js`.
