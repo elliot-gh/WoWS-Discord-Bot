@@ -75,9 +75,9 @@ module.exports = function(wowsChannel) {
             // concat and sort team stat message arrays
             // TODO: sorted inserts?
             friendlyMsg.sort(utilsStats.caseInsensitiveCompare);
-            friendlyMsg.unshift('\n=====\nFriendly Team\n=====\n');
+            friendlyMsg.unshift('\n=====\nFriendly Team\n=====\n\n');
             enemyMsg.sort(utilsStats.caseInsensitiveCompare);
-            enemyMsg.unshift('\n=====\nEnemy Team\n=====\n');
+            enemyMsg.unshift('\n=====\nEnemy Team\n=====\n\n');
             let allMsg = friendlyMsg.concat(enemyMsg);
 
             // combine as many messages as we can under the discord 2000 char limit
