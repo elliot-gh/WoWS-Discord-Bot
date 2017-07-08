@@ -29,7 +29,7 @@ module.exports = function(client) {
       throw new Error('DEFAULT_WOWS_CHANNEL was not set!');
     }
     wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-    replayMonitor = require('./replay_monitor.js')(wowsChannel); // FIXME: hanging WoWS load
+    replayMonitor = require('./replay_monitor.js')(wowsChannel);
   }
   initBot();
 
@@ -39,7 +39,7 @@ module.exports = function(client) {
 
     // !wgstats [account name] [ship name] will query stats for that player and ship
     if(msgContent.substring(0, 8) === '!wgstats') {
-      console.log('\n' + msgContent);
+      console.log('Chat command:' + msgContent + '\n');
 
       let channel = msg.channel;
       let msgArray = msgContent.split(' ');

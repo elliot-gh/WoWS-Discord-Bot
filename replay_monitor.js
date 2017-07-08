@@ -16,21 +16,23 @@ module.exports = function(wowsChannel) {
   let arenaJson = {}; // later filled with tempArenaInfo.json
   let friendlyMsg = []; // friendly team stats
   let enemyMsg = []; // enemy team stats
-  let watcher; // chokidar watcher on tempArenaInfo.json
+  let watcher = undefined; // chokidar watcher on tempArenaInfo.json
 
   // run when match start is detected
   // reads the tempArenaInfo.json file that is created by wows
   function processMatch(path) {
     let hrStart = process.hrtime();
 
+    // create a copy in the bot directory to read off of
+    // also helps to debug if a certain tempArenaJson.json breaks something
     fs.writeFileSync('./tempArenaJson2.json', fs.readFileSync(path));
-    // watcher.close(); // after we copy we no longer need to watch the original
-
-    console.log('Loading file ./tempArenaJson2.json...');
+    console.log('Detected a match! Begin match processing.');
+    console.log('Copying ' + path + ' to ./tempArenaJson2.json...');
+    console.log('Loading file ./tempArenaJson2.json...\n');
     wowsChannel.send('Detected a match! Loading player stats...');
 
-    // parse json and build team arrays
-    arenaJson = require('./tempArenaJson2.json'); // blocking operation, but we need to wait anyways
+    // parse copied json and build team arrays
+    arenaJson = JSON.parse(fs.readFileSync('./tempArenaJson2.json'));
     let processedPlayers = 0;
     let totalPlayers = arenaJson.vehicles.length;
     friendlyMsg = [];
@@ -69,40 +71,47 @@ module.exports = function(wowsChannel) {
             resolve();
           });
         })
+        .catch((rejectReason) => {
+          return new Promise((resolve, reject) => {
+            console.log('Error during processMatch(): ' + rejectReason + '\n');
+            wowsChannel.send('**Error while processing match:** ' + rejectReason
+                + '\nSome stats may be missing.');
+            processedPlayers++;
+            resolve();
+          });
+        })
         .then(() => { // prepare message arrays for sending 
           // only begin sending once all stats have been retrieved
           if(processedPlayers === totalPlayers) {
             // concat and sort team stat message arrays
             // TODO: sorted inserts?
             friendlyMsg.sort(utilsStats.caseInsensitiveCompare);
-            friendlyMsg.unshift('\n=====\nFriendly Team\n=====\n\n');
+            friendlyMsg.unshift('.\n==========\nFriendly Team\n==========\n\n');
             enemyMsg.sort(utilsStats.caseInsensitiveCompare);
-            enemyMsg.unshift('\n=====\nEnemy Team\n=====\n\n');
+            enemyMsg.unshift('\n=========\nEnemy Team\n=========\n\n');
             let allMsg = friendlyMsg.concat(enemyMsg);
 
             // combine as many messages as we can under the discord 2000 char limit
-            // to reduce spam sending messages
+            // this reduces spamming send() and speeds things up quite a bit
             let tmpMsg = '';
-            do {
+            while(allMsg.length > 0) {
               if(tmpMsg.length + allMsg[0].length <= 2000) {
                 tmpMsg += allMsg.shift();
               } else {
                 wowsChannel.send(tmpMsg);
                 tmpMsg = '';
               }
-            } while(allMsg.length > 0);         
+            }
+
+            // if we have leftover messages because they were small enough, send it
+            if(tmpMsg !== '') {
+              wowsChannel.send(tmpMsg);
+              tmpMsg = '';
+            }
 
             let hrEnd = process.hrtime(hrStart);
-            console.log('It took ' + hrEnd[0] + ' seconds to load all stats.\n');
-
-            // initWatcher(); // rewatch file after everything is done 
+            console.log('\nIt took ' + hrEnd[0] + ' seconds to load all stats.\n');
           }
-        })
-        .catch((rejectReason) => {
-          console.log('Error during processMatch(): ' + rejectReason);
-          wowsChannel.send('**Error:** Something went wrong while processing the match.\n'
-              + 'Some stats may be missing.');
-          processedPlayers++;
         });
     }
 
@@ -110,20 +119,28 @@ module.exports = function(wowsChannel) {
   }
 
   // reinit chokidar watcher
-  function initWatcher() {
+  function initWatcher(path) {
+    // if we're here again (probably due to an unlink event), close and rewatch the new file
+    // this is because Node's fs will continue to watch the old deleted file 
+    // and we get some weird behavior from that
+    if(watcher !== undefined) {
+      console.log(path + ' was deleted or changed (probably due to loading into a new game).\n'
+          + 'Rewatching ' + arenaJsonPath + '.\n');
+      watcher.close();
+    }
+    
     // watch for tempArenaInfo.json with player info created by wows
     watcher = chokidar.watch(arenaJsonPath, {
-      usePolling: {
-        interval: 2000,
-        binaryInterval: 3000
-      },
-      // usePolling: false,
+      usePolling: false,
       awaitWriteFinish: {
         stabilityThreshold: 2000,
         pollInterval: 1000
       }
     });
-    watcher.on('add', processMatch); // FIXME: seems to hang wows loading
+
+    watcher.on('add', processMatch); // wows has loaded into a match
+    watcher.on('unlink', initWatcher); // reinit watcher to watch new file/inode
+    watcher.on('change', initWatcher); // reinit watcher to watch new file/inode
   }
 
   // init replay monitor

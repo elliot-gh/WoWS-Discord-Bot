@@ -232,22 +232,24 @@ module.exports = function() {
 
           if(jsonBody.meta.hidden !== null) { // hidden stats
             console.log('Got player stats for ' + playerId + '!');
-            resolve('Profile hidden.');
+            resolve('Profile hidden.\n');
             return;
           } 
-          // first battle
-          // the reason why we are checking the battles field as well is because for some reason
-          // the API will either randomly return 0'd data or something is buggy below. 
-          // I'm never around when someone queries stats and this returns 0s/infs.
-          // TODO: figure that bug out
-          else if(jsonBody.data[playerId] === null || jsonBody.data[playerId].battles === 0) {
+          // first battle ever
+          else if(jsonBody.data[playerId] === null) {
             console.log('Got player stats for ' + playerId + '!');
-            resolve('First game, or this player does not own this ship.');
+            resolve('First game, or this player does not own this ship.\n');
             return;
           }
 
           let dataArray = jsonBody.data[playerId];
           let pvpStats = dataArray[0].pvp;
+
+          if(pvpStats.battles === 0) {
+            console.log('Got player stats for ' + playerId + '!');
+            resolve('First game in PvP, but has played this ship in PvE before.\n');
+            return;
+          }
           
           // calculate needed data
           let kdTmp; // check for divide by 0
