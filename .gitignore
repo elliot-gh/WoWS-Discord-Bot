@@ -58,3 +58,6 @@ typings/
 
 # dotenv environment variables file
 .env
+
+# copy of tempArenaInfo.json created by bot
+tempArenaInfo2.json

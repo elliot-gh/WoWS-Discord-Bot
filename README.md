@@ -28,15 +28,17 @@ Comments, starting with the pound sign `#`, are ignored.
 * `WOWS_REPLAY_FOLDER`: The directory to your World of Warships replay folder. Replays are disabled by default. To enable them, follow the instructions [here](https://na.wargaming.net/support/kb/articles/517). Make sure you leave a slash at the end of the path. (For example, `/mnt/c/Games/World_of_Warships/replays/`).
 
 ## Known Bugs
-* The replay watcher and monitor will hang World of Warships when entering a match. This seems to only be happening on Windows Subsystem for Linux on DrvFs at the moment.
+* The replay watcher and monitor will hang World of Warships when entering a match. This seems to only be happening on Windows Subsystem for Linux on DrvFs at the moment. [I've opened an issue to check if the problem causing this is intended behavior.](https://github.com/Microsoft/BashOnWindows/issues/2300)
 
 ## Credits
 * [Andrei Mackenzie's Levenshtein distance algorithm (MIT License)](https://gist.github.com/andrei-m/982927)
+* Wargaming for making World of Warships!
 
 Node.js Libraries:
-* [bluebird](http://bluebirdjs.com/)
-* [bottleneck](https://github.com/SGrondin/bottleneck)
-* [chokidar](https://github.com/paulmillr/chokidar)
-* [discord.js](https://discord.js.org/)
-* [dotenv](https://github.com/motdotla/dotenv)
-* [request](https://github.com/request/request)
+* [bluebird (MIT License)](http://bluebirdjs.com/)
+* [bottleneck (MIT License)](https://github.com/SGrondin/bottleneck)
+* [chokidar (MIT License)](https://github.com/paulmillr/chokidar)
+* [discord.js (Apache License 2.0)](https://discord.js.org/)
+* [dotenv (BSD 2-clause License)](https://github.com/motdotla/dotenv)
+* [jshint (MIT License + JSON License)](https://github.com/jshint/jshint)
+* [request (Apache License 2.0)](https://github.com/request/request)

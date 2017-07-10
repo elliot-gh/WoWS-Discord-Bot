@@ -16,13 +16,26 @@ module.exports = function() {
   let wargamingApiUrl; // region specific API URL for wargaming
   let wargamingApiId; // paramter with wargaming API application ID
 
+  // common/error strings
+  const ERROR_WG_MAX_REQUESTS_NOT_SET = 'WG_MAX_REQUESTS not set!';
+  const ERROR_WOWS_REGION_NOT_SET = 'Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.';
+  const ERROR_WG_API_ID_NOT_SET = 'WG_API_ID was not set!';
+  const ERROR_WG_API_CONNECTION = 'ERROR: Error while contacting the Wargaming API: ';
+  const ERROR_WG_API_RETURN = 'ERROR: Wargaming API returned the following error: ';
+  const ERROR_PLAYER_NAME_EMPTY = 'Player name is empty!';
+  const ERROR_PLAYER_ID_EMPTY = 'Player ID is empty!';
+  const ERROR_SHIP_ID_EMPTY = 'Ship ID is empty!';
+  const ERROR_SHIP_NAME_EMPTY = 'Ship name is empty!';
+  const ERROR_NOT_FOUND = ' was not found. Check your spelling and try again.';
+  const WARN_NO_EXACT_MATCH_SHIP = 'An exact ship name match was not found; showing the closest result.';
+
   // searches WG API for a player ID by name
   // limited amount of requests/second
   module.searchPlayerId = function(playerName) {
     return wgApiLimiter.schedule((playerName) => {
       return new Promise((resolve, reject) => {
         if(playerName === undefined) {
-          reject('Player name is empty!');
+          reject(ERROR_PLAYER_NAME_EMPTY);
           return;
         }
 
@@ -34,17 +47,15 @@ module.exports = function() {
             wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
             (error, response, body) => {
           if(error) {
-            console.log('Error while contacting WG API: ' + error);
-            reject('Error while contacting WG API: ' + error);
+            console.log(ERROR_WG_API_CONNECTION + error);
+            reject(ERROR_WG_API_CONNECTION + error);
             return;
           }
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
-            reject('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            console.log(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -54,8 +65,8 @@ module.exports = function() {
             resolve(playerId);
             return;
           } else { // no players found
-            console.log(playerName + ' was not found. Check your spelling and try again.');
-            reject(playerName + ' was not found. Check your spelling and try again.');
+            console.log(playerName + ERROR_NOT_FOUND);
+            reject(playerName + ERROR_NOT_FOUND);
             return;
           }
         });
@@ -69,7 +80,7 @@ module.exports = function() {
     return wgApiLimiter.schedule((shipName) => {
       return new Promise((resolve, reject) => {
         if(shipName === undefined) {
-          reject('Ship name is empty!');
+          reject(ERROR_SHIP_NAME_EMPTY);
           return;
         }
 
@@ -81,17 +92,15 @@ module.exports = function() {
             wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam,
             (error, response, body) => {
           if(error) {
-            console.log('Error while contacting WG API: ' + error);
-            reject('Error while contacting WG API: ' + error);
+            console.log(ERROR_WG_API_CONNECTION + error);
+            reject(ERROR_WG_API_CONNECTION + error);
             return;
           }
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
-            reject('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            console.log(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -130,14 +139,14 @@ module.exports = function() {
             resolve({
               'name': topResult.name,
               'id': topResult.id,
-              'message': 'An exact ship name match was not found; showing the closest result.',
+              'message': WARN_NO_EXACT_MATCH_SHIP
             });
             return;
           }
 
           // this is now probably never going to be reached
-          console.log(shipName + ' was not found. Check your spelling and try again.');
-          reject(shipName + ' was not found. Check your spelling and try again.');
+          console.log(shipName + ERROR_NOT_FOUND);
+          reject(shipName + ERROR_NOT_FOUND);
           return;
         });
       });
@@ -150,7 +159,7 @@ module.exports = function() {
     return wgApiLimiter.schedule((shipId) => {
       return new Promise((resolve, reject) => {
         if(shipId === undefined) {
-          reject('Ship ID is empty!');
+          reject(ERROR_SHIP_ID_EMPTY);
         }
 
         // define API params
@@ -162,17 +171,15 @@ module.exports = function() {
             wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam,
             (error, response, body) => {
           if(error) {
-            console.log('Error while contacting WG API: ' + error);
-            reject('Error while contacting WG API: ' + error);
+            console.log(ERROR_WG_API_CONNECTION + error);
+            reject(ERROR_WG_API_CONNECTION + error);
             return;
           }
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
-            reject('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            console.log(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
@@ -182,8 +189,8 @@ module.exports = function() {
             resolve(shipName);
             return;
           } else {
-            console.log(shipId + ' was not found. Check the ID and try again.');
-            reject(shipId + ' was not found. Check the ID and try again.');
+            console.log(shipId + ERROR_NOT_FOUND);
+            reject(shipId + ERROR_NOT_FOUND);
             return;
           }          
         });
@@ -197,7 +204,7 @@ module.exports = function() {
     return wgApiLimiter.schedule((playerId, shipId) => {
       return new Promise((resolve, reject) => {
         if(playerId === undefined) {
-          reject('Player ID is empty!');
+          reject(ERROR_PLAYER_ID_EMPTY);
         } else if(playerId === undefined) {
           reject('Ship ID is empty!');
         }
@@ -205,8 +212,8 @@ module.exports = function() {
         // define API params
         let shipStatsApi = 'ships/stats/';
         let accountParam = '&account_id=' + playerId;
-        let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, ' 
-            + 'pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
+        let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, ' +
+            'pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
         let shipParam = '';
         if(shipId !== undefined) {
           shipParam = '&ship_id=' + shipId;
@@ -216,28 +223,24 @@ module.exports = function() {
             wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
             (error, response, body) => {
           if(error) {
-            console.log('Error while contacting WG API: ' + error);
-            reject('Error while contacting WG API: ' + error);
+            console.log(ERROR_WG_API_CONNECTION + error);
+            reject(ERROR_WG_API_CONNECTION + error);
             return;
           }
 
           let jsonBody = JSON.parse(body);
           if(jsonBody.status === 'error') {
-            console.log('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
-            reject('WG API returned the following error: ' 
-                + jsonBody.error.code + ' ' + jsonBody.error.message);
+            console.log(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
+            reject(ERROR_WG_API_RETURN + jsonBody.error.code + ' ' + jsonBody.error.message);
             return;
           }
 
+          console.log('Got player stats for ' + playerId + '!');
+
           if(jsonBody.meta.hidden !== null) { // hidden stats
-            console.log('Got player stats for ' + playerId + '!');
             resolve('Profile hidden.\n');
             return;
-          } 
-          // first battle ever
-          else if(jsonBody.data[playerId] === null) {
-            console.log('Got player stats for ' + playerId + '!');
+          } else if(jsonBody.data[playerId] === null) { // first battle ever
             resolve('First game, or this player does not own this ship.\n');
             return;
           }
@@ -246,7 +249,6 @@ module.exports = function() {
           let pvpStats = dataArray[0].pvp;
 
           if(pvpStats.battles === 0) {
-            console.log('Got player stats for ' + playerId + '!');
             resolve('First game in PvP, but has played this ship in PvE before.\n');
             return;
           }
@@ -270,7 +272,6 @@ module.exports = function() {
             kd: kdTmp
           };
 
-          console.log('Got player stats for ' + playerId + '!');
           resolve(stats);
           return;
         });
@@ -282,7 +283,7 @@ module.exports = function() {
   function initWgApis() {
     // make sure WG API requests/second limit was set
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
-      throw new Error('WG_MAX_REQUESTS not set!');
+      throw new Error(ERROR_WG_MAX_REQUESTS_NOT_SET);
     }
     wgApiLimiter = new Bottleneck(1, 1000 / parseInt(process.env.WG_MAX_REQUESTS, 10));
 
@@ -301,12 +302,11 @@ module.exports = function() {
         wargamingApiUrl = 'https://api.worldofwarships.asia/wows/';
         break;
       default:
-        throw new Error('Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.');
-        // no break needed
+        throw new Error(ERROR_WOWS_REGION_NOT_SET);
     }
 
     if(process.env.WG_API_ID === undefined || process.env.WG_API_ID === '') {
-      throw new Error('WG_API_ID was not set!');
+      throw new Error(ERROR_WG_API_ID_NOT_SET);
     }
     wargamingApiId = '?application_id=' + process.env.WG_API_ID;
   }
