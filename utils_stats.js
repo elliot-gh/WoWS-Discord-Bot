@@ -3,28 +3,42 @@
  * Description: Contains utilites for formatting stats.
  */
 
+const util = require('util');
+
 // contains utilites functions for formatting stats
 // just require() this
 module.exports = function() {
-  let module = {};
+  let module = {}; // this module 
+
+  // message strings
+  const MSG_NO_STATS = '**%s**: *%s*\n%s'; // player name, ship name, actual message
+  const MSG_STATS_FORMAT = '**%s**: *%s*\n' + // player name, ship name
+                           'Battles: %d\n' + // num of battles
+                           'Win Rate: %d%%\n' + // win rate in percentage
+                           'Average XP: %d\n' + // average xp
+                           'Average Damage: %d\n' + // average damage
+                           'Survival Rate: %d%%\n' + // survival rate in percentage
+                           'Average Plane Kills: %d\n' + // average plane kills
+                           'Average Kills: %d\n'; // average kills
+  const MSG_KD_FORMAT    = 'KD: %s\n'; // KD ratio
 
   // format stats into something readable
-  module.formatStats = function(stats, playerName, shipName) {
+  module.formatStats = function(playerName, shipName, stats) {
     if(typeof stats === 'string') { // hidden or some kind of error
-      return '**' + playerName + '**: *' + shipName + '*\n' + stats;
-    } else { // JSON
-      let msg = '**' + playerName + '**: *' + shipName + '*\n' +
-                'Battles: ' + stats.totalBattles + '\n' +
-                'Win Rate: ' + stats.winRate.toFixed(2) + '%\n' +
-                'Average XP: ' + stats.avgXp.toFixed(0) + '\n' +
-                'Average Damage: ' + stats.avgDmg.toFixed(0) + '\n' +
-                'Survival Rate: ' + stats.survivalRate.toFixed(2) + '%\n' +
-                'Average Plane Kills: ' + stats.avgPlaneKills.toFixed(2) + '\n' +
-                'Average Kills: ' + stats.avgKills.toFixed(2) + '\n';
-      if(typeof stats.kd === 'string') {
-        msg += 'KD: ' + stats.kd + '\n';
+      return util.format(MSG_NO_STATS, playerName, shipName, stats);
+    } else { // stats in JSON
+      let msg = util.format(MSG_STATS_FORMAT, playerName, shipName,
+                            stats.totalBattles,
+                            stats.winRate.toFixed(2),
+                            stats.avgXp.toFixed(0),
+                            stats.avgDmg.toFixed(0),
+                            stats.survivalRate.toFixed(2),
+                            stats.avgPlaneKills.toFixed(2),
+                            stats.avgKills.toFixed(2));
+      if(typeof stats.kd === 'string') { // checking inf KD
+        msg += util.format(MSG_KD_FORMAT, stats.kd);
       } else {
-        msg += 'KD: ' + stats.kd.toFixed(2) + '\n';
+        msg += util.format(MSG_KD_FORMAT, stats.kd.toFixed(2));
       }
 
       return msg;
@@ -32,7 +46,8 @@ module.exports = function() {
   };
 
   // calculates Levenshtein distance
-  // most of this implementation copied from Andrei Mackenzie under the MIT License.
+  // this implementation was copied from Andrei Mackenzie under the MIT License;
+  // only stylistic elements were changed.
   // working link as of this commit: https://gist.github.com/andrei-m/982927
   module.levenshteinDistance = function(input, actual) {
     if(input.length === 0) {

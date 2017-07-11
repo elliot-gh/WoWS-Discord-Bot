@@ -6,18 +6,21 @@
 require('dotenv').config();
 const Discord = require('discord.js');
 const client = new Discord.Client();
+const util = require('util');
 
-// common/error strings
-const ERROR_DISCORD_TOKEN_NOT_SET = 'DISCORD_TOKEN was not set!';
+// console strings
+const CON_LOGGED_IN = '\n----------\n' +
+                      'Logged in as:\n' +
+                      '%s#%s\n' + // username, discriminator
+                      '%s\n' + // id
+                      '----------\n';
+
+// error strings
+const ERR_DISCORD_TOKEN_NOT_SET = 'DISCORD_TOKEN was not set!';
 
 // log the logged in account
 client.on('ready', () => {
-  console.log('\n----------');
-  console.log('Logged in as:');
-  console.log(client.user.username + '#' + client.user.discriminator);
-  console.log(client.user.id);
-  console.log('----------\n');
-  console.log('I am ready!\n');
+  console.log(util.format(CON_LOGGED_IN, client.user.username, client.user.discriminator, client.user.id));
 
   // load in wows_bot
   const wows_bot = require('./wows_bot.js')(client);
@@ -25,6 +28,6 @@ client.on('ready', () => {
 
 // login with token from .env
 if(process.env.DISCORD_TOKEN === undefined || process.env.DISCORD_TOKEN === '') {
-  throw new Error(ERROR_DISCORD_TOKEN_NOT_SET);
+  throw new Error(ERR_DISCORD_TOKEN_NOT_SET);
 }
 client.login(process.env.DISCORD_TOKEN);
