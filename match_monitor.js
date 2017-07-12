@@ -1,5 +1,5 @@
 /*
- * File name: replay_monitor.js
+ * File name: match_monitor.js
  * Description: Contains the functionality to monitor replays being made when a game is started.
  */
 

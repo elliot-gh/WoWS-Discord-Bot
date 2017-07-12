@@ -37,6 +37,7 @@ module.exports = function(client) {
   const ERR_COMMAND_WARNING = '**Command warning:** %s\n%s'; // warning reason, full warning
   const ERR_COMMAND_FAILED_INVALID_FORMAT = util.format('**Command failed:** Invalid command format!\nThe command is `%s`', STR_CMD_WGSTATS_FULL);
   const ERR_DEFAULT_WOWS_CHANNEL_NOT_SET = 'DEFAULT_WOWS_CHANNEL was not set!';
+  const ERR_MATCH_MONITOR_ON_NOT_SET = 'MATCH_MONITOR_ON was not set!';
 
   // inits the vars
   function initBot() {
@@ -53,7 +54,14 @@ module.exports = function(client) {
       throw new Error(ERR_DEFAULT_WOWS_CHANNEL_NOT_SET);
     }
     wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-    replayMonitor = require('./replay_monitor.js')(wowsChannel);
+
+    // see if we want to watch replay 
+    if(process.env.REPLAY_MONITOR_ON === 'true') {
+      replayMonitor = require('./match_monitor.js')(wowsChannel);
+    } else if(process.env.REPLAY_MONITOR_ON !== 'false' || 
+        process.env.REPLAY_MONITOR_ON === undefined || process.env.REPLAY_MONITOR_ON === '') {
+      throw new Error(ERR_MATCH_MONITOR_ON_NOT_SET);
+    }
   }
   initBot();
 

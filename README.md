@@ -19,9 +19,11 @@ This is currently under active development, and thus there will be issues.
 
 ## .env Configuration
 ### <a name="env-configuration"></a>
+Simply type the value indicated after the equals sign in the `.env` file.
 Comments, starting with the pound sign `#`, are ignored.
 * `DEFAULT_WOWS_CHANNEL`: The channel your bot will send stat messages in. Omit the pound sign.
 * `DISCORD_TOKEN`: A Discord bot token used by your bot to login. Get one from [here](https://discordapp.com/developers/applications/).
+* `REPLAY_MONITOR_ON`: Whether to process matches you enter and load stat messages for every player. Set it to "true" if you want it on, or "false" if you don't (such as wanting to use this bot just for the chat command).
 * `WG_API_ID`: The API ID used by your bot to use the WGI API. Get one from [here](https://developers.wargaming.net/applications/).
 * `WG_MAX_REQUESTS`: The max amount of requests per second your bot is allowed to issue. If you don't know what it should be, leave it at 10. More detail about this limit is [here](https://developers.wargaming.net/documentation/guide/principles/).
 * `WOWS_REGION`: The server region you play in for World of Warships. Valid options are `na`, `eu`, `ru`, or `asia`.
