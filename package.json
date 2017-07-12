@@ -1,6 +1,6 @@
 {
   "name": "wows-match-stats-discord-bot",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A Discord bot that retrieves data of the players in the current World of Warships match.",
   "main": "index.js",
   "scripts": {

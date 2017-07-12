@@ -118,6 +118,7 @@ module.exports = function(client) {
         })
         .catch((rejectReason) => { // catch errors
           let errStr = util.format(ERR_COMMAND_FAILED, rejectReason);
+          // TODO: remove this or figure out something for duplication of errors in console
           console.log(errStr);
           channel.send(errStr);
           return;

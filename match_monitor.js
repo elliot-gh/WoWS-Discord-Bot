@@ -107,6 +107,7 @@ module.exports = function(wowsChannel) {
             }
             
             error = true;
+            // TODO: remove this or figure out something for duplication of errors in console
             console.log(util.format(ERR_DURING_PROCESS_MATCH, rejectReason));
             processedPlayers++;
             resolve();
