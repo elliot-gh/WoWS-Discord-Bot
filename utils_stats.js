@@ -22,6 +22,20 @@ module.exports = function() {
                            'Average Kills: %d\n'; // average kills
   const MSG_KD_FORMAT    = 'KD: %s\n'; // KD ratio
 
+  // used for array sorting
+  module.caseInsensitiveCompare = function(string1, string2) {
+    var s1lower = string1.toLowerCase();
+    var s2lower = string2.toLowerCase();
+
+    if(s1lower < s2lower) {
+      return -1;
+    } else if(s1lower > s2lower) {
+      return 1;
+    } else {
+      return 0;
+    }
+  };
+
   // format stats into something readable
   module.formatStats = function(playerName, shipName, stats) {
     if(typeof stats === 'string') { // hidden or some kind of error
@@ -89,20 +103,6 @@ module.exports = function() {
     }
 
     return matrix[actual.length][input.length];
-  };
-
-  // used for array sorting
-  module.caseInsensitiveCompare = function(string1, string2) {
-    var s1lower = string1.toLowerCase();
-    var s2lower = string2.toLowerCase();
-
-    if(s1lower < s2lower) {
-      return -1;
-    } else if(s1lower > s2lower) {
-      return 1;
-    } else {
-      return 0;
-    }
   };
 
   return module;

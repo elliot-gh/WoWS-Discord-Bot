@@ -46,6 +46,7 @@ module.exports = function() {
   const ERR_NOT_FOUND_ID = '%d was not found. Check the ID and try again.'; // whatever ID is not found
   const ERR_PLAYER_ID_EMPTY = 'Player ID is empty!';
   const ERR_PLAYER_NAME_EMPTY = 'Player name is empty!';
+  const ERR_PLAYER_NAME_MULTIPLE_EMPTY = 'Player names are empty!';
   const ERR_SHIP_ID_EMPTY = 'Ship ID is empty!';
   const ERR_SHIP_NAME_EMPTY = 'Ship name is empty!';
   const ERR_WG_API_CONNECTION = 'ERROR: Error while contacting the Wargaming API: %s'; // the error
@@ -54,6 +55,114 @@ module.exports = function() {
   const ERR_WG_MAX_REQUESTS_NOT_SET = 'WG_MAX_REQUESTS not set!';
   const ERR_WOWS_REGION_NOT_SET = 'Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.';
   const WARN_NO_EXACT_MATCH_SHIP = 'An exact ship name match was not found; showing the closest result.';
+
+  // takes in an array of player objects that at least consist of {name, id}
+  // limited amount of requests/second
+  module.searchMultiplePlayerIds = function(multPlayerNames) {
+    return wgApiLimiter.schedule((multPlayerNames) => {
+      return new Promise((resolve, reject) => {
+        if(multPlayerNames === undefined || multPlayerNames.length === 0) {
+          reject(ERR_PLAYER_NAME_MULTIPLE_EMPTY);
+          return;
+        }
+
+        // define API params
+        const accountApi = 'account/list/';
+        const typeParam = '&type=exact';
+        let searchParam = '&search=';
+
+        for(let nameIndex = 0; nameIndex < multPlayerNames.length; nameIndex++) {
+          if(!multPlayerNames.hasOwnProperty(nameIndex)) {
+            continue;
+          }
+
+          searchParam += multPlayerNames[nameIndex].name;
+          if(nameIndex !== multPlayerNames.length - 1) {
+            searchParam += ',';
+          }
+        }
+
+        request.get(
+            wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam,
+            (error, response, body) => {
+          if(error) {
+            let errStr = util.format(ERR_WG_API_CONNECTION, error);
+            console.log(errStr);
+            reject(errStr);
+            return;
+          }
+
+          let jsonBody = JSON.parse(body);
+          if(jsonBody.status === 'error') {
+            let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
+            console.log(errStr);
+            reject(errStr);
+            return;
+          }
+
+          // returns an array of objects with {nickname, account_id}
+          let wgSearchResults = jsonBody.data;
+
+          // begin sort and searching intersection
+          multPlayerNames.sort((obj1, obj2) => {
+            if(obj1.name < obj2.name) {
+              return -1;
+            } else if(obj1.name > obj2.name) {
+              return 1;
+            } else {
+              return 0;
+            }
+          });
+          wgSearchResults.sort((obj1, obj2) => {
+            if(obj1.nickname < obj2.nickname) {
+              return -1;
+            } else if(obj1.nickname > obj2.nickname) {
+              return 1;
+            } else {
+              return 0;
+            }
+          });
+
+          let multIndex = 0;
+          let wgIndex = 0;
+          let matching = [];
+          let missing = [];
+
+          // iterate through each array, getting matching names
+          while(multIndex < multPlayerNames.length && wgIndex < wgSearchResults.length) {
+            if(multPlayerNames[multIndex].name < wgSearchResults[wgIndex].nickname) {
+              let missingPlayer = {
+                reason: util.format(ERR_NOT_FOUND_NAME, multPlayerNames[multIndex].name),
+                relation: multPlayerNames[multIndex].relation
+              };
+              missing.push(missingPlayer);
+              multIndex++;
+            } else if(multPlayerNames[multIndex].name > wgSearchResults[wgIndex].nickname) {
+              let missingPlayer = {
+                reason: util.format(ERR_NOT_FOUND_NAME, wgSearchResults[wgIndex].nickname),
+                relation: -1 // we don't know the relation, so leave it at -1
+              };
+              missing.push(missingPlayer);
+              wgIndex++;
+            } else { // match found
+              let vehicleMatch = multPlayerNames[multIndex];
+              vehicleMatch.playerId = wgSearchResults[wgIndex].account_id;
+              matching.push(vehicleMatch);
+
+              multIndex++;
+              wgIndex++;
+            }
+          }
+
+          resolve({
+            matching: matching,
+            missing: missing
+          });
+          return;
+        });
+      });
+    }, multPlayerNames);
+  };
 
   // searches WG API for a player ID by name
   // limited amount of requests/second
@@ -322,8 +431,8 @@ module.exports = function() {
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
       throw new Error(ERR_WG_MAX_REQUESTS_NOT_SET);
     }
-    // run one command every (1 second / WG_MAX_REQUESTS) ms
-    wgApiLimiter = new Bottleneck(1, 1000 / parseInt(process.env.WG_MAX_REQUESTS));
+    // run WG_MAX_REQUESTS command every (1 second / WG_MAX_REQUESTS)
+    wgApiLimiter = new Bottleneck(parseInt(process.env.WG_MAX_REQUESTS), 1000 / parseInt(process.env.WG_MAX_REQUESTS));
 
     // init API URLs
     switch(process.env.WOWS_REGION) {

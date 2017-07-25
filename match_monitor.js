@@ -31,6 +31,7 @@ module.exports = function(wowsChannel) {
   const MSG_STAT = '%s\n'; // indvidiual stat message
   const MSG_TEAM_ENEMY = '\n=========\nEnemy Team\n=========\n\n';
   const MSG_TEAM_FRIENDLY = '==========\nFriendly Team\n==========\n\n';
+  const MSG_UNKNOWN_TEAM = '*Unknown Team*: %s\n';
 
   // console strings
   const CON_ARENA_CHANGE = '\n%s was deleted or changed (probably due to loading into a new game).\n'; // replay path
@@ -41,7 +42,7 @@ module.exports = function(wowsChannel) {
   
   // error strings  
   const ERR_DURING_PROCESS_MATCH = 'ERROR: Error while processing match. Some stats may be missing: %s\n';
-  const ERR_DURING_PROCESS_MATCH_MSG = '**ERROR**: Error while processing match. Additional errors will not be sent here and will only be logged in the bot console. Some stats may be missing:\n%s\n';
+  const ERR_DURING_PROCESS_MATCH_MSG = '**ERROR**: Error while processing match. Additional errors will not be sent here and will only be logged in the bot console. Some stats may be missing:\n%s\n\n';
   const ERR_WOWS_REPLAY_FOLDER_MISSING = 'The WOWS_REPLAY_FOLDER directory does not exist! Make sure replays are enabled and/or the replays folder exists.\n' +
                                            'It was set to: %s.\n'; // path set to
   const ERR_WOWS_REPLAY_FOLDER_NOT_SET = 'WOWS_REPLAY_FOLDER was not set!';
@@ -60,98 +61,120 @@ module.exports = function(wowsChannel) {
 
     // parse copied json and build team arrays
     let arenaJson = JSON.parse(fs.readFileSync(STR_CURRENT_PATH + STR_ARENA_NEW));
-    let totalPlayers = arenaJson.vehicles.length; // total players
+    let allPlayers = arenaJson.vehicles;
+    let totalPlayers = allPlayers.length; // total players
     let processedPlayers = 0; // total players processed
     let friendlyMsg = []; // array of friendly team stat messages
     let enemyMsg = []; // array of enemy team stat messages
     let error = false; // whether an error was encountered
-    
-    // loop through every player entry in tempArenaInfo.json
-    for(let vehicleIndex in arenaJson.vehicles) {
-      if(!arenaJson.vehicles.hasOwnProperty(vehicleIndex)) {
-        continue;
-      }
 
-      let player = arenaJson.vehicles[vehicleIndex];
-      let playerId;
-      let stats;
-      let shipName;
-      wgApi.searchPlayerId(player.name) // get player ID
-        .then((tmpPlayerId) => {
-          playerId = tmpPlayerId;
-          return wgApi.stats(playerId, player.shipId);
-        })
-        .then((tmpStats) => { // get stats of player/ship
-          stats = tmpStats;
-          return wgApi.searchShipName(player.shipId);
-        })
-        .then((tmpShipName) => { // allocate by teams
-          return new Promise((resolve, reject) => {
-            shipName = tmpShipName;
-            let msg = utilsStats.formatStats(player.name, shipName, stats);
+    wgApi.searchMultiplePlayerIds(allPlayers)
+      .then((allPlayerIds) => {
+        let matching = allPlayerIds.matching;
+        let missing = allPlayerIds.missing;
 
-            if(player.relation === 0 || player.relation === 1) { // yourself/friendly
-              friendlyMsg.push(util.format(MSG_STAT, msg));
-            } else if(player.relation === 2) { // enemy
-              enemyMsg.push(util.format(MSG_STAT, msg));
-            }
-
-            processedPlayers++;
-            resolve();
-          });
-        })
-        .catch((rejectReason) => { // catch any errors and print/send them out
-          return new Promise((resolve, reject) => {
-            if(!error) { // we don't want to keep spamming error messages
-              wowsChannel.send(util.format(ERR_DURING_PROCESS_MATCH_MSG, rejectReason));
-            }
-            
-            error = true;
-            // TODO: remove this or figure out something for duplication of errors in console
-            console.log(util.format(ERR_DURING_PROCESS_MATCH, rejectReason));
-            processedPlayers++;
-            resolve();
-          });
-        })
-        .then(() => { // prepare message arrays for sending 
-          // only begin sending once all stats have been retrieved
-          if(processedPlayers === totalPlayers) {
-            // concatenate and sort team stat message arrays
-            // TODO: sorted inserts?
-            friendlyMsg.sort(utilsStats.caseInsensitiveCompare);
-            friendlyMsg.unshift(MSG_TEAM_FRIENDLY);
-            enemyMsg.sort(utilsStats.caseInsensitiveCompare);
-            enemyMsg.unshift(MSG_TEAM_ENEMY);
-            let allMsg = friendlyMsg.concat(enemyMsg);
-
-            // combine as many messages as we can under the Discord char limit
-            // this reduces spamming send() and speeds things up quite a bit
-            let tmpMsg = '';
-            while(allMsg.length > 0) {
-              // our max char limit per message is set to
-              // (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX) to account for MSG_COMPACT_PREFIX
-              // MSG_COMPACT_PREFIX improves readability on the Discord compact setting
-              // so that the message doesn't start on the same line as the name
-              if((tmpMsg.length + allMsg[0].length) <= 
-                  (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX)) {
-                tmpMsg += allMsg.shift();
-              } else {
-                wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
-                tmpMsg = '';
-              }
-            }
-
-            // if we have leftover messages because they were small enough, send it
-            if(tmpMsg !== '') {
-              wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
-              tmpMsg = '';
-            }
-
-            let hrEnd = process.hrtime(hrStart);
-            console.log(util.format(CON_PROCESS_TIME, hrEnd[0]));
+        for(let missingIndex in missing) {
+          if(!missing.hasOwnProperty(missingIndex)) {
+            continue;
           }
-        });
-    }
+
+          let player = missing[missingIndex];
+
+          if(player.relation === 0 || player.relation === 1) { // yourself/friendly
+            friendlyMsg.push(util.format(ERR_DURING_PROCESS_MATCH_MSG, player.reason));
+          } else if(player.relation === 2) { // enemy
+            enemyMsg.push(util.format(ERR_DURING_PROCESS_MATCH_MSG, player.reason));
+          } else { // no proper relation for some reason; stick to end
+            enemyMsg.push(util.format(MSG_UNKNOWN_TEAM, player.reason));
+          }
+
+          processedPlayers++;
+        }
+
+        // loop through every found player
+        for(let matchingIndex in matching) {
+          if(!matching.hasOwnProperty(matchingIndex)) {
+            continue;
+          }
+
+          let player = matching[matchingIndex];
+          let playerId = player.playerId;
+          let stats;
+          let shipName;
+
+          wgApi.stats(playerId, player.shipId) // get stats of player/ship
+            .then((tmpStats) => { 
+              stats = tmpStats;
+              return wgApi.searchShipName(player.shipId); // get ship name
+            })
+            .then((tmpShipName) => { // allocate by teams
+              return new Promise((resolve, reject) => {
+                shipName = tmpShipName;
+                let msg = utilsStats.formatStats(player.name, shipName, stats);
+
+                if(player.relation === 0 || player.relation === 1) { // yourself/friendly
+                  friendlyMsg.push(util.format(MSG_STAT, msg));
+                } else if(player.relation === 2) { // enemy
+                  enemyMsg.push(util.format(MSG_STAT, msg));
+                }
+
+                processedPlayers++;
+                resolve();
+              });
+            })
+            .catch((rejectReason) => { // catch any errors and print/send them out
+              return new Promise((resolve, reject) => {
+                if(!error) { // we don't want to keep spamming error messages
+                  wowsChannel.send(util.format(ERR_DURING_PROCESS_MATCH_MSG, rejectReason));
+                }
+                
+                error = true;
+                // TODO: remove this or figure out something for duplication of errors in console
+                console.log(util.format(ERR_DURING_PROCESS_MATCH, rejectReason));
+                processedPlayers++;
+                resolve();
+              });
+            })
+            .then(() => { // prepare message arrays for sending 
+              // only begin sending once all stats have been retrieved
+              if(processedPlayers === totalPlayers) {
+                // concatenate and sort team stat message arrays
+                // TODO: sorted inserts?
+                friendlyMsg.sort(utilsStats.caseInsensitiveCompare);
+                friendlyMsg.unshift(MSG_TEAM_FRIENDLY);
+                enemyMsg.sort(utilsStats.caseInsensitiveCompare);
+                enemyMsg.unshift(MSG_TEAM_ENEMY);
+                let allMsg = friendlyMsg.concat(enemyMsg);
+
+                // combine as many messages as we can under the Discord char limit
+                // this reduces spamming send() and speeds things up quite a bit
+                let tmpMsg = '';
+                while(allMsg.length > 0) {
+                  // our max char limit per message is set to
+                  // (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX) to account for MSG_COMPACT_PREFIX
+                  // MSG_COMPACT_PREFIX improves readability on the Discord compact setting
+                  // so that the message doesn't start on the same line as the name
+                  if((tmpMsg.length + allMsg[0].length) <= 
+                      (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX)) {
+                    tmpMsg += allMsg.shift();
+                  } else {
+                    wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
+                    tmpMsg = '';
+                  }
+                }
+
+                // if we have leftover messages because they were small enough, send it
+                if(tmpMsg !== '') {
+                  wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
+                  tmpMsg = '';
+                }
+
+                let hrEnd = process.hrtime(hrStart);
+                console.log(util.format(CON_PROCESS_TIME, hrEnd[0]));
+              }
+            });
+        }
+    });
 
     return;
   }
