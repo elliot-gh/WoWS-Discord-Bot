@@ -431,7 +431,7 @@ module.exports = function() {
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
       throw new Error(ERR_WG_MAX_REQUESTS_NOT_SET);
     }
-    // run WG_MAX_REQUESTS command every (1 second / WG_MAX_REQUESTS)
+    // run WG_MAX_REQUESTS command at once, send once per (1 second / WG_MAX_REQUESTS)
     wgApiLimiter = new Bottleneck(parseInt(process.env.WG_MAX_REQUESTS), 1000 / parseInt(process.env.WG_MAX_REQUESTS));
 
     // init API URLs
