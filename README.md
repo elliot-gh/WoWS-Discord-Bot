@@ -21,6 +21,7 @@ This is currently under active development.
 ### <a name="env-configuration"></a>
 Simply type the value indicated after the equals sign in the `.env` file.
 Comments, starting with the pound sign `#`, are ignored.
+* `COMPACT_MSG_FORMAT`: Adds a dot prefix to all messages to improve formatting and readability for Discord's compact setting. Set it to "true" if you want it on, or "false" if you don't.
 * `DEFAULT_WOWS_CHANNEL`: The channel your bot will send stat messages in. Omit the pound sign.
 * `DISCORD_TOKEN`: A Discord bot token used by your bot to login. Get one from [here](https://discordapp.com/developers/applications/).
 * `REPLAY_MONITOR_ON`: Whether to process matches you enter and load stat messages for every player. Set it to "true" if you want it on, or "false" if you don't (such as wanting to use this bot just for the chat command).
