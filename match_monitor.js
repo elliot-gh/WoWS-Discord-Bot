@@ -26,7 +26,7 @@ module.exports = function(wowsChannel) {
   const STR_CURRENT_PATH = './';
 
   // message strings
-  const MSG_COMPACT_PREFIX = '.\n%s'; // assists readability in Discord compact
+  let MSG_COMPACT_PREFIX = '%s'; // assists readability in Discord compact
   const MSG_MATCH_DETECTED = 'Detected a match! Loading player stats...';
   const MSG_STAT = '%s\n'; // indvidiual stat message
   const MSG_TEAM_ENEMY = '\n=========\nEnemy Team\n=========\n\n';
@@ -40,11 +40,11 @@ module.exports = function(wowsChannel) {
   const CON_MATCH_DETECTED = '\n===============\nDetected a match! Beginning match processing...';
   const CON_PROCESS_TIME = '\nIt took %d seconds to load all stats.\n===============\n'; // time in seconds
   
-  // error strings  
+  // error strings
+  const ERR_COMPACT_MSG_FORMAT_NOT_SET = 'COMPACT_MSG_FORMAT was not set!';
   const ERR_DURING_PROCESS_MATCH = 'ERROR: Error while processing match. Some stats may be missing: %s\n';
   const ERR_DURING_PROCESS_MATCH_MSG = '**ERROR**: Error while processing match. Additional errors will not be sent here and will only be logged in the bot console. Some stats may be missing:\n%s\n\n';
-  const ERR_WOWS_REPLAY_FOLDER_MISSING = 'The WOWS_REPLAY_FOLDER directory does not exist! Make sure replays are enabled and/or the replays folder exists.\n' +
-                                           'It was set to: %s.\n'; // path set to
+  const ERR_WOWS_REPLAY_FOLDER_MISSING = 'The WOWS_REPLAY_FOLDER directory does not exist! Make sure replays are enabled and/or the replays folder exists.\n'; // path set to
   const ERR_WOWS_REPLAY_FOLDER_NOT_SET = 'WOWS_REPLAY_FOLDER was not set!';
 
   // run when match start is detected
@@ -207,6 +207,14 @@ module.exports = function(wowsChannel) {
 
   // init replay monitor
   function initReplayMonitor() {
+    // make sure compact prefix option is set
+    if(process.env.COMPACT_MSG_FORMAT === 'true') {
+      MSG_COMPACT_PREFIX = '.\n%s';
+    } else if(process.env.COMPACT_MSG_FORMAT !== 'false' || 
+        process.env.COMPACT_MSG_FORMAT === undefined || process.env.COMPACT_MSG_FORMAT === '') {
+      throw new Error(ERR_COMPACT_MSG_FORMAT_NOT_SET);
+    }
+
     // make sure replay directory was set
     if(process.env.WOWS_REPLAY_FOLDER === undefined || process.env.WOWS_REPLAY_FOLDER === '') {
       throw new Error(ERR_WOWS_REPLAY_FOLDER_NOT_SET);

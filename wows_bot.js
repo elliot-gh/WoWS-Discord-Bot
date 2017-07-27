@@ -22,7 +22,7 @@ module.exports = function(client) {
   const CMD_WGSTATS_PREFIX_LENGTH = 8;
 
   // message strings
-  const MSG_COMPACT_PREFIX = '.\n%s'; // assists readability in Discord compact
+  let MSG_COMPACT_PREFIX = '%s'; // assists readability in Discord compact
 
   // program strings
   const STR_CMD_WGSTATS_PREFIX = '!wgstats';
@@ -36,6 +36,7 @@ module.exports = function(client) {
   const ERR_COMMAND_FAILED = '**Command failed:** %s'; // failure 
   const ERR_COMMAND_WARNING = '**Command warning:** %s\n%s'; // warning reason, full warning
   const ERR_COMMAND_FAILED_INVALID_FORMAT = util.format('**Command failed:** Invalid command format!\nThe command is `%s`', STR_CMD_WGSTATS_FULL);
+  const ERR_COMPACT_MSG_FORMAT_NOT_SET = 'COMPACT_MSG_FORMAT was not set!';
   const ERR_DEFAULT_WOWS_CHANNEL_NOT_SET = 'DEFAULT_WOWS_CHANNEL was not set!';
   const ERR_MATCH_MONITOR_ON_NOT_SET = 'MATCH_MONITOR_ON was not set!';
 
@@ -48,6 +49,14 @@ module.exports = function(client) {
         'name': STR_CMD_WGSTATS_FULL
       }
     });
+
+    // make sure compact prefix option is set
+    if(process.env.COMPACT_MSG_FORMAT === 'true') {
+      MSG_COMPACT_PREFIX = '.\n%s';
+    } else if(process.env.COMPACT_MSG_FORMAT !== 'false' || 
+        process.env.COMPACT_MSG_FORMAT === undefined || process.env.COMPACT_MSG_FORMAT === '') {
+      throw new Error(ERR_COMPACT_MSG_FORMAT_NOT_SET);
+    }
 
     // make sure discord channel was set 
     if(process.env.DEFAULT_WOWS_CHANNEL === undefined || process.env.DEFAULT_WOWS_CHANNEL === '') {
@@ -81,6 +90,7 @@ module.exports = function(client) {
         return;
       }
 
+      // parse chat command for name and ship name
       let playerName = msgArray[CMD_WGSTATS_ARGS_PLAYER];
       let shipName = '';
       for(let shipIndex = CMD_WGSTATS_ARGS_SHIP; shipIndex < msgArray.length; shipIndex++) {
@@ -90,10 +100,10 @@ module.exports = function(client) {
         }
       }
 
-      let playerId;
-      let shipId;
-      let actualName;
-      let searchMessage;
+      let playerId; // player ID of the requested player name
+      let shipId; // ship ID of the requested ship name
+      let actualShipName; // the actual ship name
+      let searchShipIdMsg; // return value of searchShipId(); lets us know about typos
       wgApi.searchPlayerId(playerName)
         .then((tmpPlayerId) => { // get player ID from name
           playerId = tmpPlayerId;
@@ -101,14 +111,14 @@ module.exports = function(client) {
         })
         .then((tmpShipIdResult) => { // get ship ID from name
           shipId = tmpShipIdResult.id;
-          actualName = tmpShipIdResult.name;
-          searchMessage = tmpShipIdResult.message;
+          actualShipName = tmpShipIdResult.name;
+          searchShipIdMsg = tmpShipIdResult.message;
           return wgApi.stats(playerId, shipId);
         })
         .then((stats) => { // get actual stats
-          let statsMsg = utilsStats.formatStats(playerName, actualName, stats);
-          if(searchMessage !== '') { // warning
-            statsMsg = util.format(ERR_COMMAND_WARNING, searchMessage, statsMsg);
+          let statsMsg = utilsStats.formatStats(playerName, actualShipName, stats);
+          if(searchShipIdMsg !== '') { // warning
+            statsMsg = util.format(ERR_COMMAND_WARNING, searchShipIdMsg, statsMsg);
           } else {
             statsMsg = util.format(MSG_COMPACT_PREFIX, statsMsg);
           }
