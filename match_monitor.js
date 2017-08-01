@@ -17,8 +17,9 @@ module.exports = function(wowsChannel) {
   let watcher = undefined; // chokidar watcher on tempArenaInfo.json
 
   // constant values
-  const DISCORD_MAX_CHAR = 2000; // Discord's max char per message
-  const LENGTH_MSG_COMPACT_PREFIX = 2; // see below under message strings
+  const DISCORD_MAX_CHAR_EMBED = 2048; // Discord's max char per embed description
+  const COLOR_ENEMY = 0xFF0000; // red
+  const COLOR_FRIENDLY = 0x00FF00; // green
 
   // program strings
   const STR_ARENA_NEW = 'tempArenaInfo2.json';
@@ -26,11 +27,10 @@ module.exports = function(wowsChannel) {
   const STR_CURRENT_PATH = './';
 
   // message strings
-  let MSG_COMPACT_PREFIX = '%s'; // assists readability in Discord compact
   const MSG_MATCH_DETECTED = 'Detected a match! Loading player stats...';
   const MSG_STAT = '%s\n'; // indvidiual stat message
-  const MSG_TEAM_ENEMY = '\n=========\nEnemy Team\n=========\n\n';
-  const MSG_TEAM_FRIENDLY = '==========\nFriendly Team\n==========\n\n';
+  const MSG_TEAM_ENEMY = 'Enemy Team Stats %d/%d';
+  const MSG_TEAM_FRIENDLY = 'Friendly Team Stats %d/%d';
   const MSG_UNKNOWN_TEAM = '*Unknown Team*: %s\n';
 
   // console strings
@@ -41,7 +41,7 @@ module.exports = function(wowsChannel) {
   const CON_PROCESS_TIME = '\nIt took %d seconds to load all stats.\n===============\n'; // time in seconds
   
   // error strings
-  const ERR_COMPACT_MSG_FORMAT_NOT_SET = 'COMPACT_MSG_FORMAT was not set!';
+  const ERR_DURING_MSG_SEND = 'ERROR: Error while sending Discord message: %s';
   const ERR_DURING_PROCESS_MATCH = 'ERROR: Error while processing match. Some stats may be missing: %s\n';
   const ERR_DURING_PROCESS_MATCH_MSG = '**ERROR**: Error while processing match. Additional errors will not be sent here and will only be logged in the bot console. Some stats may be missing:\n%s\n\n';
   const ERR_WOWS_REPLAY_FOLDER_MISSING = 'The WOWS_REPLAY_FOLDER directory does not exist! Make sure replays are enabled and/or the replays folder exists.\n'; // path set to
@@ -57,7 +57,10 @@ module.exports = function(wowsChannel) {
     fs.writeFileSync(STR_CURRENT_PATH + STR_ARENA_NEW, fs.readFileSync(replayPath));
     console.log(CON_MATCH_DETECTED);
     console.log(util.format(CON_COPYING, replayPath, STR_CURRENT_PATH, STR_ARENA_NEW));
-    wowsChannel.send(MSG_MATCH_DETECTED);
+    wowsChannel.send(MSG_MATCH_DETECTED)
+      .catch((sendError) => {
+        console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+      });
 
     // parse copied json and build team arrays
     let arenaJson = JSON.parse(fs.readFileSync(STR_CURRENT_PATH + STR_ARENA_NEW));
@@ -68,6 +71,7 @@ module.exports = function(wowsChannel) {
     let enemyMsg = []; // array of enemy team stat messages
     let error = false; // whether an error was encountered
 
+    // process each player found
     wgApi.searchMultiplePlayerIds(allPlayers)
       .then((allPlayerIds) => {
         let matching = allPlayerIds.matching;
@@ -125,7 +129,10 @@ module.exports = function(wowsChannel) {
             .catch((rejectReason) => { // catch any errors and print/send them out
               return new Promise((resolve, reject) => {
                 if(!error) { // we don't want to keep spamming error messages
-                  wowsChannel.send(util.format(ERR_DURING_PROCESS_MATCH_MSG, rejectReason));
+                  wowsChannel.send(util.format(ERR_DURING_PROCESS_MATCH_MSG, rejectReason))
+                    .catch((sendError) => {
+                      console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+                    });
                 }
                 
                 error = true;
@@ -141,32 +148,82 @@ module.exports = function(wowsChannel) {
                 // concatenate and sort team stat message arrays
                 // TODO: sorted inserts?
                 friendlyMsg.sort(utilsStats.caseInsensitiveCompare);
-                friendlyMsg.unshift(MSG_TEAM_FRIENDLY);
                 enemyMsg.sort(utilsStats.caseInsensitiveCompare);
-                enemyMsg.unshift(MSG_TEAM_ENEMY);
-                let allMsg = friendlyMsg.concat(enemyMsg);
 
                 // combine as many messages as we can under the Discord char limit
                 // this reduces spamming send() and speeds things up quite a bit
+                // discord.js's native split doesn't really have the behavior 
+                // we want, since it splits within stats as well
+                let friendlyFormatted = [];
+                let enemyFormated = [];
                 let tmpMsg = '';
-                while(allMsg.length > 0) {
-                  // our max char limit per message is set to
-                  // (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX) to account for MSG_COMPACT_PREFIX
-                  // MSG_COMPACT_PREFIX improves readability on the Discord compact setting
-                  // so that the message doesn't start on the same line as the name
-                  if((tmpMsg.length + allMsg[0].length) <= 
-                      (DISCORD_MAX_CHAR - LENGTH_MSG_COMPACT_PREFIX)) {
-                    tmpMsg += allMsg.shift();
-                  } else {
-                    wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
+
+                // format friendly team first
+                while(friendlyMsg.length > 0) {
+                  if((tmpMsg.length + friendlyMsg[0].length) <= // keep adding messages with new lines as long as there's space
+                      (DISCORD_MAX_CHAR_EMBED - 1)) {
+                    tmpMsg += friendlyMsg.shift();
+                    if(friendlyMsg.length === 0) { // if at last, then push
+                      friendlyFormatted.push(tmpMsg);
+                      tmpMsg = '';
+                    }
+                  } else if((tmpMsg.length + friendlyMsg[0].length) <= // if there's space for the message but no new line,
+                      (DISCORD_MAX_CHAR_EMBED)) {                      // add the message and push to final array
+                    tmpMsg += friendlyMsg.shift();
+                    friendlyFormatted.push(tmpMsg);
+                    tmpMsg = '';
+                  } else { // if there's no space at all then push to array
+                    friendlyFormatted.push(tmpMsg);
                     tmpMsg = '';
                   }
                 }
 
-                // if we have leftover messages because they were small enough, send it
-                if(tmpMsg !== '') {
-                  wowsChannel.send(util.format(MSG_COMPACT_PREFIX, tmpMsg));
-                  tmpMsg = '';
+                for(let friendlyIndex = 0; friendlyIndex < friendlyFormatted.length; friendlyIndex++) {
+                  wowsChannel.send('', {
+                    embed: {
+                      title: util.format(MSG_TEAM_FRIENDLY, friendlyIndex + 1, friendlyFormatted.length),
+                      type: 'rich',
+                      description: friendlyFormatted[friendlyIndex],
+                      color: COLOR_FRIENDLY
+                    }
+                  })
+                    .catch((sendError) => {
+                      console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+                    });
+                }
+
+                // format enemy team next
+                while(enemyMsg.length > 0) {
+                  if((tmpMsg.length + enemyMsg[0].length) <= // keep adding messages with new lines as long as there's space
+                      (DISCORD_MAX_CHAR_EMBED - 1)) {
+                    tmpMsg += enemyMsg.shift();
+                    if(enemyMsg.length === 0) { // if at last, then push
+                      enemyFormated.push(tmpMsg);
+                      tmpMsg = '';
+                    }
+                  } else if((tmpMsg.length + enemyMsg[0].length) <= // if there's space for the message but no new line,
+                      (DISCORD_MAX_CHAR_EMBED)) {                      // add the message and push to final array
+                    tmpMsg += enemyMsg.shift();
+                    enemyFormated.push(tmpMsg);
+                    tmpMsg = '';
+                  } else { // if there's no space at all then push to array
+                    enemyFormated.push(tmpMsg);
+                    tmpMsg = '';
+                  }
+                }
+
+                for(let enemyIndex = 0; enemyIndex < enemyFormated.length; enemyIndex++) {
+                  wowsChannel.send('', {
+                    embed: {
+                      title: util.format(MSG_TEAM_ENEMY, enemyIndex + 1, enemyFormated.length),
+                      type: 'rich',
+                      description: enemyFormated[enemyIndex],
+                      color: COLOR_ENEMY
+                    }
+                  })
+                    .catch((sendError) => {
+                      console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+                    });
                 }
 
                 let hrEnd = process.hrtime(hrStart);
@@ -174,6 +231,22 @@ module.exports = function(wowsChannel) {
               }
             });
         }
+    })
+    .catch((rejectReason) => { // catch any errors and print/send them out
+      return new Promise((resolve, reject) => {
+        if(!error) { // we don't want to keep spamming error messages
+          wowsChannel.send(util.format(ERR_DURING_PROCESS_MATCH_MSG, rejectReason))
+            .catch((sendError) => {
+              console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+            });
+        }
+        
+        error = true;
+        // TODO: remove this or figure out something for duplication of errors in console
+        console.log(util.format(ERR_DURING_PROCESS_MATCH, rejectReason));
+        processedPlayers++;
+        resolve();
+      });
     });
 
     return;
@@ -207,14 +280,6 @@ module.exports = function(wowsChannel) {
 
   // init replay monitor
   function initReplayMonitor() {
-    // make sure compact prefix option is set
-    if(process.env.COMPACT_MSG_FORMAT === 'true') {
-      MSG_COMPACT_PREFIX = '.\n%s';
-    } else if(process.env.COMPACT_MSG_FORMAT !== 'false' || 
-        process.env.COMPACT_MSG_FORMAT === undefined || process.env.COMPACT_MSG_FORMAT === '') {
-      throw new Error(ERR_COMPACT_MSG_FORMAT_NOT_SET);
-    }
-
     // make sure replay directory was set
     if(process.env.WOWS_REPLAY_FOLDER === undefined || process.env.WOWS_REPLAY_FOLDER === '') {
       throw new Error(ERR_WOWS_REPLAY_FOLDER_NOT_SET);
