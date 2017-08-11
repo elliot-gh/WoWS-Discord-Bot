@@ -21,7 +21,7 @@ module.exports = function(client) {
   const CMD_WGSTATS_ARGS_SHIP = 2;
   const CMD_WGSTATS_PREFIX_LENGTH = 8;
   const COLOR_CMD = 0x8C8F91; // discord message grey
-  const COLOR_ERR = 0xFF0000; // red
+  const COLOR_ERR = 0xFFA500; // orange
 
   // program strings
   const STR_CMD_WGSTATS_PREFIX = '!wgstats';
@@ -37,14 +37,14 @@ module.exports = function(client) {
   // error strings
   const ERR_COMMAND_FAILED = 'Command failed!'; // failure
   const ERR_COMMAND_FAILED_PREFIX = '**Command failed**: %s'; // failure with message
-  const ERR_COMMAND_WARNING = '**Command warning:** %s\n%s\n'; // warning reason, full warning
+  const ERR_COMMAND_WARNING = '**Command warning:** %s\n\n%s\n'; // warning reason, full warning
   const ERR_COMMAND_FAILED_INVALID_FORMAT = util.format('Invalid command format! The command is `%s`', STR_CMD_WGSTATS_FULL);
   const ERR_DEFAULT_WOWS_CHANNEL_NOT_SET = 'DEFAULT_WOWS_CHANNEL was not set!';
   const ERR_DURING_MSG_SEND = 'ERROR: Error while sending Discord message: %s';
   const ERR_MATCH_MONITOR_ON_NOT_SET = 'MATCH_MONITOR_ON was not set!';
 
   // inits the vars
-  function initBot() {
+  (function initBot() {
     client.user.setPresence({
       'status': 'online',
       'afk': false,
@@ -66,8 +66,7 @@ module.exports = function(client) {
         process.env.REPLAY_MONITOR_ON === undefined || process.env.REPLAY_MONITOR_ON === '') {
       throw new Error(ERR_MATCH_MONITOR_ON_NOT_SET);
     }
-  }
-  initBot();
+  }) ();
 
   // ----- chat commands -----
   client.on('message', (msg) => {

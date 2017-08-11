@@ -14,12 +14,13 @@ const wgApi = require('./wg_api.js')();
 // require() this and pass in the Discord.js channel the messages will be sent to
 module.exports = function(wowsChannel) {
   let module = {}; // this module
-  let watcher = undefined; // chokidar watcher on tempArenaInfo.json
+  let watcher; // chokidar watcher on tempArenaInfo.json
 
   // constant values
   const DISCORD_MAX_CHAR_EMBED = 2048; // Discord's max char per embed description
   const COLOR_ENEMY = 0xFF0000; // red
   const COLOR_FRIENDLY = 0x00FF00; // green
+  const COLOR_ERR = 0xFFA500; // orange
 
   // program strings
   const STR_ARENA_NEW = 'tempArenaInfo2.json';
@@ -42,8 +43,9 @@ module.exports = function(wowsChannel) {
   
   // error strings
   const ERR_DURING_MSG_SEND = 'ERROR: Error while sending Discord message: %s';
-  const ERR_DURING_PROCESS_MATCH = 'ERROR: Error while processing match. Some stats may be missing: %s\n';
-  const ERR_DURING_PROCESS_MATCH_MSG = '**ERROR**: Error while processing match. Additional errors will not be sent here and will only be logged in the bot console. Some stats may be missing:\n%s\n\n';
+  const ERR_DURING_PROCESS_MATCH = 'ERROR: Error while processing match: %s\n';
+  const ERR_DURING_PROCESS_MATCH_MSG = 'Error(s) while processing match. Additional errors will not be sent here and will only be logged in the console. Some stats may be missing.';
+  const ERR_MSG = 'ERROR';
   const ERR_WOWS_REPLAY_FOLDER_MISSING = 'The WOWS_REPLAY_FOLDER directory does not exist! Make sure replays are enabled and/or the replays folder exists.\n'; // path set to
   const ERR_WOWS_REPLAY_FOLDER_NOT_SET = 'WOWS_REPLAY_FOLDER was not set!';
 
@@ -74,25 +76,40 @@ module.exports = function(wowsChannel) {
     // process each player found
     wgApi.searchMultiplePlayerIds(allPlayers)
       .then((allPlayerIds) => {
+        let message = allPlayerIds.message;
         let matching = allPlayerIds.matching;
         let missing = allPlayerIds.missing;
 
-        for(let missingIndex in missing) {
-          if(!missing.hasOwnProperty(missingIndex)) {
-            continue;
-          }
+        // mult search had an issue, probably due to fallback to one by one
+        if(message !== undefined) {
+          wowsChannel.send('', {
+            embed: {
+              title: ERR_MSG,
+              type: 'rich',
+              description: message,
+              color: COLOR_ERR
+            }
+          })
+            .catch((sendError) => {
+              console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+            });
+        }
 
-          let player = missing[missingIndex];
-
-          if(player.relation === 0 || player.relation === 1) { // yourself/friendly
-            friendlyMsg.push(util.format(ERR_DURING_PROCESS_MATCH_MSG, player.reason));
-          } else if(player.relation === 2) { // enemy
-            enemyMsg.push(util.format(ERR_DURING_PROCESS_MATCH_MSG, player.reason));
-          } else { // no proper relation for some reason; stick to end
-            enemyMsg.push(util.format(MSG_UNKNOWN_TEAM, player.reason));
-          }
-
-          processedPlayers++;
+        // if we couldn't resolve some names, print only one message
+        if(!error && missing.length > 0) {
+          error = true;
+          processedPlayers += missing.length;
+          wowsChannel.send('', {
+            embed: {
+              title: ERR_MSG,
+              type: 'rich',
+              description: ERR_DURING_PROCESS_MATCH_MSG,
+              color: COLOR_ERR
+            }
+          })
+            .catch((sendError) => {
+              console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
+            });
         }
 
         // loop through every found player
@@ -279,7 +296,7 @@ module.exports = function(wowsChannel) {
   }
 
   // init replay monitor
-  function initReplayMonitor() {
+  (function initReplayMonitor() {
     // make sure replay directory was set
     if(process.env.WOWS_REPLAY_FOLDER === undefined || process.env.WOWS_REPLAY_FOLDER === '') {
       throw new Error(ERR_WOWS_REPLAY_FOLDER_NOT_SET);
@@ -288,8 +305,7 @@ module.exports = function(wowsChannel) {
     }
     let arenaJsonPath = process.env.WOWS_REPLAY_FOLDER + STR_ARENA_ORIGINAL;
     initWatcher(arenaJsonPath);
-  }
-  initReplayMonitor();
+  }) ();
 
   return module;
 };

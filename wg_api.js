@@ -42,6 +42,7 @@ module.exports = function() {
   const CON_SHIP_TO_ID = '%s is %d.'; // ship name, ship ID
 
   // error strings
+  const ERR_MULT_SEARCH = 'INVALID_SEARCH';
   const ERR_NOT_FOUND_NAME = '%s was not found. Check your spelling and try again.'; // whatever name is not found
   const ERR_NOT_FOUND_ID = '%d was not found. Check the ID and try again.'; // whatever ID is not found
   const ERR_PLAYER_ID_EMPTY = 'Player ID is empty!';
@@ -54,52 +55,67 @@ module.exports = function() {
   const ERR_WG_API_RETURN = 'ERROR: Wargaming API returned the following error: %s %s'; // error code + error msg
   const ERR_WG_MAX_REQUESTS_NOT_SET = 'WG_MAX_REQUESTS not set!';
   const ERR_WOWS_REGION_NOT_SET = 'Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.';
+  const WARN_MULT_FAILED = 'An error occurred while searching player names. Falling back to a slower method.';
   const WARN_NO_EXACT_MATCH_SHIP = 'An exact ship name match was not found; showing the closest result.';
 
   // takes in an array of player objects that at least consist of {name, id}
   // limited amount of requests/second
   module.searchMultiplePlayerIds = function(multPlayerNames) {
-    return wgApiLimiter.schedule((multPlayerNames) => {
-      return new Promise((resolve, reject) => {
-        if(multPlayerNames === undefined || multPlayerNames.length === 0) {
-          reject(ERR_PLAYER_NAME_MULTIPLE_EMPTY);
+    return new Promise((resolve, reject) => {
+      if(multPlayerNames === undefined || multPlayerNames.length === 0) {
+        reject(ERR_PLAYER_NAME_MULTIPLE_EMPTY);
+        return;
+      }
+
+      // define API params
+      const accountApi = 'account/list/';
+      const typeParam = '&type=exact';
+      let searchParam = '&search=';
+
+      for(let nameIndex = 0; nameIndex < multPlayerNames.length; nameIndex++) {
+        if(!multPlayerNames.hasOwnProperty(nameIndex)) {
+          continue;
+        }
+
+        searchParam += multPlayerNames[nameIndex].name;
+        if(nameIndex !== multPlayerNames.length - 1) {
+          searchParam += ',';
+        }
+      }
+
+      wgApiLimiter.submit(
+          request.get, 
+          wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam, 
+          (error, response, body) => {
+        if(error) {
+          let errStr = util.format(ERR_WG_API_CONNECTION, error);
+          console.log(errStr);
+          reject(errStr);
           return;
         }
 
-        // define API params
-        const accountApi = 'account/list/';
-        const typeParam = '&type=exact';
-        let searchParam = '&search=';
-
-        for(let nameIndex = 0; nameIndex < multPlayerNames.length; nameIndex++) {
-          if(!multPlayerNames.hasOwnProperty(nameIndex)) {
-            continue;
-          }
-
-          searchParam += multPlayerNames[nameIndex].name;
-          if(nameIndex !== multPlayerNames.length - 1) {
-            searchParam += ',';
-          }
-        }
-
-        request.get(
-            wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam,
-            (error, response, body) => {
-          if(error) {
-            let errStr = util.format(ERR_WG_API_CONNECTION, error);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          let jsonBody = JSON.parse(body);
-          if(jsonBody.status === 'error') {
+        let message; // message to send back
+        let multProcess = true; // true if multi processing, false if one by one
+        let jsonBody = JSON.parse(body);
+        if(jsonBody.status === 'error') {
+          // if any names are invalid, then wg will reject the entire query
+          // fallback to one by one search
+          if(jsonBody.error.message === ERR_MULT_SEARCH) {
+            message = WARN_MULT_FAILED;
+            multProcess = false;
+          } else {
             let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
             console.log(errStr);
             reject(errStr);
             return;
           }
+        }
 
+        let matching = [];
+        let missing = [];
+
+        // query successful, multi processing
+        if(multProcess) {
           // returns an array of objects with {nickname, account_id}
           let wgSearchResults = jsonBody.data;
 
@@ -125,8 +141,6 @@ module.exports = function() {
 
           let multIndex = 0;
           let wgIndex = 0;
-          let matching = [];
-          let missing = [];
 
           // iterate through each array, getting matching names
           while(multIndex < multPlayerNames.length && wgIndex < wgSearchResults.length) {
@@ -155,84 +169,156 @@ module.exports = function() {
           }
 
           resolve({
+            message: message,
             matching: matching,
             missing: missing
           });
           return;
-        });
+        } else { // query rejected, one by one processing
+          let processedNames = 0;
+          let totalPlayers = multPlayerNames.length;
+
+          for(let playerIndex in multPlayerNames) {
+            if(!multPlayerNames.hasOwnProperty(playerIndex)) {
+              continue;
+            }
+
+            let player = multPlayerNames[playerIndex];
+            module.searchPlayerId(player.name)
+              .then((tmpPlayerId) => {
+                return new Promise((resolve, reject) => {
+                  let match = player;
+                  match.playerId = tmpPlayerId;
+                  matching.push(match);
+                  processedNames++;
+                  resolve();
+                });
+              })
+              .catch((rejectReason) => {
+                return new Promise((resolve, reject) => {
+                  let missingPlayer = {
+                    reason: rejectReason,
+                    relation: player.relation
+                  };
+                  missing.push(missingPlayer);
+                  processedNames++;
+                  resolve();
+                });
+              })
+              .then(() => {
+                if(processedNames === totalPlayers) {
+                  resolve({
+                    message: message,
+                    matching: matching,
+                    missing: missing
+                  });
+                  return;
+                }
+              });
+          }
+        }          
       });
-    }, multPlayerNames);
+    });
   };
 
   // searches WG API for a player ID by name
   // limited amount of requests/second
   module.searchPlayerId = function(playerName) {
-    return wgApiLimiter.schedule((playerName) => {
-      return new Promise((resolve, reject) => {
-        if(playerName === undefined) {
-          reject(ERR_PLAYER_NAME_EMPTY);
+    return new Promise((resolve, reject) => {
+      if(playerName === undefined) {
+        reject(ERR_PLAYER_NAME_EMPTY);
+        return;
+      }
+
+      // define API params
+      const accountApi = 'account/list/';
+      const searchParam = '&search=' + playerName;
+
+      wgApiLimiter.submit(
+          request.get,
+          wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
+          (error, response, body) => {
+        if(error) {
+          let errStr = util.format(ERR_WG_API_CONNECTION, error);
+          console.log(errStr);
+          reject(errStr);
           return;
         }
 
-        // define API params
-        const accountApi = 'account/list/';
-        const searchParam = '&search=' + playerName;
+        let jsonBody = JSON.parse(body);
+        if(jsonBody.status === 'error') {
+          let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
+          console.log(errStr);
+          reject(errStr);
+          return;
+        }
 
-        request.get( // search for a player name
-            wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
-            (error, response, body) => {
-          if(error) {
-            let errStr = util.format(ERR_WG_API_CONNECTION, error);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          let jsonBody = JSON.parse(body);
-          if(jsonBody.status === 'error') {
-            let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          if(jsonBody.meta.count > 0) { // exists
-            let playerId = jsonBody.data[0].account_id;
-            console.log(util.format(CON_PLAY_TO_ID, playerName, playerId));
-            resolve(playerId);
-            return;
-          } else { // no players found
-            let errStr = util.format(ERR_NOT_FOUND_NAME, playerName);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-        });
+        if(jsonBody.meta.count > 0) { // exists
+          let playerId = jsonBody.data[0].account_id;
+          console.log(util.format(CON_PLAY_TO_ID, playerName, playerId));
+          resolve(playerId);
+          return;
+        } else { // no players found
+          let errStr = util.format(ERR_NOT_FOUND_NAME, playerName);
+          console.log(errStr);
+          reject(errStr);
+          return;
+        }
       });
-    }, playerName);
+    });
   };
 
   // searches WG API for ship ID by name
   // limited amount of requests/second 
   module.searchShipId = function(shipName) {
-    return wgApiLimiter.schedule((shipName) => {
-      return new Promise((resolve, reject) => {
-        if(shipName === undefined) {
-          reject(ERR_SHIP_NAME_EMPTY);
+    return new Promise((resolve, reject) => {
+      if(shipName === undefined) {
+        reject(ERR_SHIP_NAME_EMPTY);
+        return;
+      }
+
+      // define API params
+      const encyclopediaApi = 'encyclopedia/ships/';
+      const fieldsParam = '&fields=name';
+      let currentPage = 1;
+      let pageParam = '&page_no=';
+      let pageTotal = 1;
+      let requestAgain = true;
+      let topResult = {}; // JSON data of the best matching name
+      let topResultDist = -1; // the Levenshtein distance of best matching name
+
+      // recurse through so we access all API ship pages
+      (function searchLoop() {
+        // exit recursion 
+        if(!requestAgain) {
+          // as long as something was found, use it
+          if(topResultDist > 0) {
+            console.log(util.format(CON_SHIP_TO_ID, topResult.name, topResult.id));
+            resolve({
+              'name': topResult.name,
+              'id': topResult.id,
+              'message': WARN_NO_EXACT_MATCH_SHIP
+            });
+            return;
+          } else if (topResultDist === -2) {
+            return;
+          }
+
+          let errStr = util.format(ERR_NOT_FOUND_NAME, shipName);
+          console.log(errStr);
+          reject(errStr);
           return;
         }
 
-        // define API params
-        const encyclopediaApi = 'encyclopedia/ships/';
-        const fieldsParam = '&fields=name';
-
-        request.get( // retrieve a list of all ships
-            wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam,
+        wgApiLimiter.submit(
+            request.get,
+            wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam + pageParam + currentPage,
             (error, response, body) => {
           if(error) {
             let errStr = util.format(ERR_WG_API_CONNECTION, error);
             console.log(errStr);
             reject(errStr);
+            topResultDist = -2;
             return;
           }
 
@@ -241,13 +327,18 @@ module.exports = function() {
             let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
             console.log(errStr);
             reject(errStr);
+            topResultDist = -2;
             return;
           }
 
-          let topResult = {}; // JSON data of the best matching name
-          let topResultDist = -1; // the Levenshtein distance of best matching name
+          pageTotal = jsonBody.meta.page_total;
+          currentPage++;
+          if(currentPage === pageTotal) {
+            requestAgain = false;
+          }
+
           let jsonData = jsonBody.data;
-          for(let shipIdKey in jsonData) { // iterate through everey ship, unfortunately.
+          for(let shipIdKey in jsonData) { // iterate through everey ship
             if(!jsonData.hasOwnProperty(shipIdKey)) {
               continue;
             }
@@ -260,6 +351,7 @@ module.exports = function() {
                 'id': shipIdKey,
                 'message': ''
               });
+              topResultDist = 0;
               return;
             } else { // use the lowest Levenshtein distance
               let levDist = utilsStats.levenshteinDistance(shipName, actualShipName);
@@ -273,160 +365,143 @@ module.exports = function() {
             }
           }
 
-          // as long as something was found, use it
-          if(topResultDist !== -1) {
-            console.log(util.format(CON_SHIP_TO_ID, topResult.name, topResult.id));
-            resolve({
-              'name': topResult.name,
-              'id': topResult.id,
-              'message': WARN_NO_EXACT_MATCH_SHIP
-            });
-            return;
-          }
-
-          // should never be reached... but you never know
-          let errStr = util.format(ERR_NOT_FOUND_NAME, shipName);
-          console.log(errStr);
-          reject(errStr);
-          return;
+          searchLoop();
         });
-      });
-    }, shipName);
+      }) ();
+    });
   };
 
   // searches WG API for ship name by ID
   // limited amount of requests/second
   module.searchShipName = function(shipId) {
-    return wgApiLimiter.schedule((shipId) => {
-      return new Promise((resolve, reject) => {
-        if(shipId === undefined) {
-          reject(ERR_SHIP_ID_EMPTY);
+    return new Promise((resolve, reject) => {
+      if(shipId === undefined) {
+        reject(ERR_SHIP_ID_EMPTY);
+      }
+
+      // define API params
+      let encyclopediaApi = 'encyclopedia/ships/';
+      let searchParam = '&ship_id=' + shipId;
+      let fieldsParam = '&fields=name';
+
+      wgApiLimiter.submit(
+          request.get,
+          wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam,
+          (error, response, body) => {
+        if(error) {
+          let errStr = util.format(ERR_WG_API_CONNECTION, error);
+          console.log(errStr);
+          reject(errStr);
+          return;
         }
 
-        // define API params
-        let encyclopediaApi = 'encyclopedia/ships/';
-        let searchParam = '&ship_id=' + shipId;
-        let fieldsParam = '&fields=name';
+        let jsonBody = JSON.parse(body);
+        if(jsonBody.status === 'error') {
+          let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
+          console.log(errStr);
+          reject(errStr);
+          return;
+        }
 
-        request.get( // search ship by ID, and get only name field
-            wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam,
-            (error, response, body) => {
-          if(error) {
-            let errStr = util.format(ERR_WG_API_CONNECTION, error);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          let jsonBody = JSON.parse(body);
-          if(jsonBody.status === 'error') {
-            let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          let shipName = jsonBody.data[shipId].name;
-          if(shipName !== null) { // we got a name
-            console.log(util.format(CON_ID_TO_SHIP, shipId, shipName));
-            resolve(shipName);
-            return;
-          } else { // nothing found
-            let errStr = util.format(ERR_NOT_FOUND_ID, shipId);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }          
-        });
+        let shipName = jsonBody.data[shipId].name;
+        if(shipName !== null) { // we got a name
+          console.log(util.format(CON_ID_TO_SHIP, shipId, shipName));
+          resolve(shipName);
+          return;
+        } else { // nothing found
+          let errStr = util.format(ERR_NOT_FOUND_ID, shipId);
+          console.log(errStr);
+          reject(errStr);
+          return;
+        }          
       });
-    }, shipId);
+    });
   };
 
   // queries WG API for WoWS player stats
   // limited amount of requests/second
   module.stats = function(playerId, shipId) {
-    return wgApiLimiter.schedule((playerId, shipId) => {
-      return new Promise((resolve, reject) => {
-        if(playerId === undefined) {
-          reject(ERR_PLAYER_ID_EMPTY);
-        } else if(playerId === undefined) {
-          reject(ERR_SHIP_ID_EMPTY);
-        }
+    return new Promise((resolve, reject) => {
+      if(playerId === undefined) {
+        reject(ERR_PLAYER_ID_EMPTY);
+      } else if(playerId === undefined) {
+        reject(ERR_SHIP_ID_EMPTY);
+      }
 
-        // define API params
-        let shipStatsApi = 'ships/stats/';
-        let accountParam = '&account_id=' + playerId;
-        let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, ' +
-            'pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
-        let shipParam = '';
-        if(shipId !== undefined) {
-          shipParam = '&ship_id=' + shipId;
-        }
+      // define API params
+      let shipStatsApi = 'ships/stats/';
+      let accountParam = '&account_id=' + playerId;
+      let fieldsParam = '&fields=pvp.battles, pvp.wins, pvp.damage_dealt, ' +
+          'pvp.xp, pvp.survived_battles, pvp.frags, pvp.planes_killed';
+      let shipParam = '';
+      if(shipId !== undefined) {
+        shipParam = '&ship_id=' + shipId;
+      }
 
-        request.get( // grab specific player stats
-            wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
-            (error, response, body) => {
-          if(error) {
-            let errStr = util.format(ERR_WG_API_CONNECTION, error);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          let jsonBody = JSON.parse(body);
-          if(jsonBody.status === 'error') {
-            let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
-            console.log(errStr);
-            reject(errStr);
-            return;
-          }
-
-          console.log(util.format(CON_GOT_STATS, playerId));
-
-          if(jsonBody.meta.hidden !== null) { // hidden stats
-            resolve(MSG_PROFILE_HIDDEN);
-            return;
-          } else if(jsonBody.data[playerId] === null) { // first battle ever
-            resolve(MSG_NO_STATS);
-            return;
-          }
-
-          let dataArray = jsonBody.data[playerId];
-          let pvpStats = dataArray[0].pvp;
-
-          if(pvpStats.battles === 0) { // first battle in pvp; we do get data for pve
-            resolve(MSG_FIRST_PVP);
-            return;
-          }
-          
-          // calculate needed data
-          let kdTmp; // check for divide by 0
-          if(pvpStats.battles - pvpStats.survived_battles === 0) {
-            kdTmp = 'inf';
-          } else {
-            kdTmp = pvpStats.frags / (pvpStats.battles - pvpStats.survived_battles);
-          }
-
-          let stats = {
-            totalBattles: pvpStats.battles,
-            winRate: (pvpStats.wins / pvpStats.battles) * 100, // percentage
-            avgDmg: pvpStats.damage_dealt / pvpStats.battles,
-            avgXp: pvpStats.xp / pvpStats.battles,
-            survivalRate: (pvpStats.survived_battles / pvpStats.battles) * 100, // percentage
-            avgKills: pvpStats.frags / pvpStats.battles,
-            avgPlaneKills: pvpStats.planes_killed / pvpStats.battles,
-            kd: kdTmp
-          };
-
-          resolve(stats);
+      wgApiLimiter.submit(
+          request.get,
+          wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
+          (error, response, body) => {
+        if(error) {
+          let errStr = util.format(ERR_WG_API_CONNECTION, error);
+          console.log(errStr);
+          reject(errStr);
           return;
-        });
+        }
+
+        let jsonBody = JSON.parse(body);
+        if(jsonBody.status === 'error') {
+          let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
+          console.log(errStr);
+          reject(errStr);
+          return;
+        }
+
+        console.log(util.format(CON_GOT_STATS, playerId));
+
+        if(jsonBody.meta.hidden !== null) { // hidden stats
+          resolve(MSG_PROFILE_HIDDEN);
+          return;
+        } else if(jsonBody.data[playerId] === null) { // first battle ever
+          resolve(MSG_NO_STATS);
+          return;
+        }
+
+        let dataArray = jsonBody.data[playerId];
+        let pvpStats = dataArray[0].pvp;
+
+        if(pvpStats.battles === 0) { // first battle in pvp; we do get data for pve
+          resolve(MSG_FIRST_PVP);
+          return;
+        }
+        
+        // calculate needed data
+        let kdTmp; // check for divide by 0
+        if(pvpStats.battles - pvpStats.survived_battles === 0) {
+          kdTmp = 'inf';
+        } else {
+          kdTmp = pvpStats.frags / (pvpStats.battles - pvpStats.survived_battles);
+        }
+
+        let stats = {
+          totalBattles: pvpStats.battles,
+          winRate: (pvpStats.wins / pvpStats.battles) * 100, // percentage
+          avgDmg: pvpStats.damage_dealt / pvpStats.battles,
+          avgXp: pvpStats.xp / pvpStats.battles,
+          survivalRate: (pvpStats.survived_battles / pvpStats.battles) * 100, // percentage
+          avgKills: pvpStats.frags / pvpStats.battles,
+          avgPlaneKills: pvpStats.planes_killed / pvpStats.battles,
+          kd: kdTmp
+        };
+
+        resolve(stats);
+        return;
       });
-    }, playerId, shipId);
+    });
   };
 
   // init bot
-  function initWgApis() {
+  (function initWgApis() {
     // make sure WG API requests/second limit was set
     if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
       throw new Error(ERR_WG_MAX_REQUESTS_NOT_SET);
@@ -456,8 +531,7 @@ module.exports = function() {
       throw new Error(ERR_WG_API_ID_NOT_SET);
     }
     wargamingApiId = '?application_id=' + process.env.WG_API_ID;
-  }
-  initWgApis();
+  }) ();
 
   return module;
 };
