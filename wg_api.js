@@ -331,14 +331,15 @@ module.exports = function() {
             return;
           }
 
+          // update total pages and check what page we're on
           pageTotal = jsonBody.meta.page_total;
           currentPage++;
-          if(currentPage === pageTotal) {
+          if(currentPage >= (pageTotal + 1)) {
             requestAgain = false;
           }
 
           let jsonData = jsonBody.data;
-          for(let shipIdKey in jsonData) { // iterate through everey ship
+          for(let shipIdKey in jsonData) { // iterate through every ship
             if(!jsonData.hasOwnProperty(shipIdKey)) {
               continue;
             }
