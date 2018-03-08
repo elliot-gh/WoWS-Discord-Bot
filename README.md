@@ -37,7 +37,6 @@ Comments, starting with the pound sign `#`, are ignored.
 * Wargaming for making World of Warships!
 
 Node.js Libraries:
-* [bluebird (MIT License)](http://bluebirdjs.com/)
 * [bottleneck (MIT License)](https://github.com/SGrondin/bottleneck)
 * [chokidar (MIT License)](https://github.com/paulmillr/chokidar)
 * [discord.js (Apache License 2.0)](https://discord.js.org/)

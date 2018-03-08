@@ -3,7 +3,6 @@
  * Description: Contains the functionality to monitor replays being made when a game is started.
  */
 
-const Promise = require('bluebird');
 const chokidar = require('chokidar');
 const fs = require('fs');
 const util = require('util');

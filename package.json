@@ -18,11 +18,10 @@
   },
   "homepage": "https://github.com/WhipeeDip/WoWS-Match-Stats-Discord-Bot#readme",
   "dependencies": {
-    "bluebird": "^3.5.0",
     "bottleneck": "^1.16.0",
-    "chokidar": "^1.7.0",
+    "chokidar": "^2.0.2",
     "discord.js": "^11.1.0",
-    "dotenv": "^4.0.0",
+    "dotenv": "^5.0.1",
     "request": "^2.81.0"
   }
 }

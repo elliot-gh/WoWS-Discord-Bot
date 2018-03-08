@@ -3,7 +3,6 @@
  * Description: Contains functions to interact with the Wargaming API.
  */
 
-const Promise = require('bluebird');
 const Bottleneck = require('bottleneck');
 const request = require('request');
 const util = require('util');

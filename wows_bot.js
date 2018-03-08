@@ -3,7 +3,6 @@
  * Description: Listens for new WowS matches and checks the stats of WoWS players.
  */
 
-const Promise = require('bluebird');
 const wgApi = require('./wg_api.js')();
 const util = require('util');
 const utilsStats = require('./utils_stats.js')();
