@@ -13,18 +13,22 @@ const utilsStats = require('./utils_stats.js')();
 module.exports = function() {
   let module = {}; // this module
   let wgApiLimiter; // bottleneck for Wargaming API requests
-  let wargamingApiUrl; // region specific API URL for Wargaming
   let wargamingApiId; // paramter with Wargaming API application ID
 
   // program strings
   const STR_REGION_ASIA = 'asia';
+  const STR_REGION_ASIA_URL = 'https://api.worldofwarships.asia/wows/';
   const STR_REGION_EU = 'eu';
+  const STR_REGION_EU_URL = 'https://api.worldofwarships.eu/wows/';
   const STR_REGION_NA = 'na';
+  const STR_REGION_NA_URL = 'https://api.worldofwarships.com/wows/';
   const STR_REGION_RU = 'ru';
+  const STR_REGION_RU_URL = 'https://api.worldofwarships.ru/wows/';
+
   /*
     where are the API URLs and parameters?
     unfortunately since they can be unique and changes to the API may warrant
-    looking over how all the functions work individually, 
+    looking over how all the functions work individually,
     I will not be defining them up here.
    */
 
@@ -53,13 +57,31 @@ module.exports = function() {
   const ERR_WG_API_ID_NOT_SET = 'WG_API_ID was not set!';
   const ERR_WG_API_RETURN = 'ERROR: Wargaming API returned the following error: %s %s'; // error code + error msg
   const ERR_WG_MAX_REQUESTS_NOT_SET = 'WG_MAX_REQUESTS not set!';
-  const ERR_WOWS_REGION_NOT_SET = 'Invalid WOWS_REGION or not set! It should be "na", "eu", "ru", or "asia", without quotes.';
   const WARN_MULT_FAILED = 'An error occurred while searching player names. Falling back to a slower method.';
   const WARN_NO_EXACT_MATCH_SHIP = 'An exact ship name match was not found; showing the closest result.';
 
   // takes in an array of player objects that at least consist of {name, id}
   // limited amount of requests/second
-  module.searchMultiplePlayerIds = function(multPlayerNames) {
+  module.searchMultiplePlayerIds = function(multPlayerNames, region) {
+    let wargamingApiUrl;
+    switch(region) {
+    case STR_REGION_ASIA:
+      wargamingApiUrl = STR_REGION_ASIA_URL;
+      break;
+    case STR_REGION_EU:
+      wargamingApiUrl = STR_REGION_EU_URL;
+      break;
+    case STR_REGION_NA:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    case STR_REGION_RU:
+      wargamingApiUrl = STR_REGION_RU_URL;
+      break;
+    default:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    }
+
     return new Promise((resolve, reject) => {
       if(multPlayerNames === undefined || multPlayerNames.length === 0) {
         reject(ERR_PLAYER_NAME_MULTIPLE_EMPTY);
@@ -83,8 +105,8 @@ module.exports = function() {
       }
 
       wgApiLimiter.submit(
-          request.get, 
-          wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam, 
+          request.get,
+          wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam,
           (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
@@ -183,7 +205,7 @@ module.exports = function() {
             }
 
             let player = multPlayerNames[playerIndex];
-            module.searchPlayerId(player.name)
+            module.searchPlayerId(player.name, region)
               .then((tmpPlayerId) => {
                 return new Promise((resolve, reject) => {
                   let match = player;
@@ -215,14 +237,33 @@ module.exports = function() {
                 }
               });
           }
-        }          
+        }
       });
     });
   };
 
   // searches WG API for a player ID by name
   // limited amount of requests/second
-  module.searchPlayerId = function(playerName) {
+  module.searchPlayerId = function(playerName, region) {
+    let wargamingApiUrl;
+    switch(region) {
+    case STR_REGION_ASIA:
+      wargamingApiUrl = STR_REGION_ASIA_URL;
+      break;
+    case STR_REGION_EU:
+      wargamingApiUrl = STR_REGION_EU_URL;
+      break;
+    case STR_REGION_NA:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    case STR_REGION_RU:
+      wargamingApiUrl = STR_REGION_RU_URL;
+      break;
+    default:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    }
+
     return new Promise((resolve, reject) => {
       if(playerName === undefined) {
         reject(ERR_PLAYER_NAME_EMPTY);
@@ -235,7 +276,7 @@ module.exports = function() {
 
       wgApiLimiter.submit(
           request.get,
-          wargamingApiUrl + accountApi + wargamingApiId + searchParam, 
+          wargamingApiUrl + accountApi + wargamingApiId + searchParam,
           (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
@@ -268,8 +309,27 @@ module.exports = function() {
   };
 
   // searches WG API for ship ID by name
-  // limited amount of requests/second 
-  module.searchShipId = function(shipName) {
+  // limited amount of requests/second
+  module.searchShipId = function(shipName, region) {
+    let wargamingApiUrl;
+    switch(region) {
+    case STR_REGION_ASIA:
+      wargamingApiUrl = STR_REGION_ASIA_URL;
+      break;
+    case STR_REGION_EU:
+      wargamingApiUrl = STR_REGION_EU_URL;
+      break;
+    case STR_REGION_NA:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    case STR_REGION_RU:
+      wargamingApiUrl = STR_REGION_RU_URL;
+      break;
+    default:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    }
+
     return new Promise((resolve, reject) => {
       if(shipName === undefined) {
         reject(ERR_SHIP_NAME_EMPTY);
@@ -288,7 +348,7 @@ module.exports = function() {
 
       // recurse through so we access all API ship pages
       (function searchLoop() {
-        // exit recursion 
+        // exit recursion
         if(!requestAgain) {
           // as long as something was found, use it
           if(topResultDist > 0) {
@@ -373,7 +433,26 @@ module.exports = function() {
 
   // searches WG API for ship name by ID
   // limited amount of requests/second
-  module.searchShipName = function(shipId) {
+  module.searchShipName = function(shipId, region) {
+    let wargamingApiUrl;
+    switch(region) {
+    case STR_REGION_ASIA:
+      wargamingApiUrl = STR_REGION_ASIA_URL;
+      break;
+    case STR_REGION_EU:
+      wargamingApiUrl = STR_REGION_EU_URL;
+      break;
+    case STR_REGION_NA:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    case STR_REGION_RU:
+      wargamingApiUrl = STR_REGION_RU_URL;
+      break;
+    default:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    }
+
     return new Promise((resolve, reject) => {
       if(shipId === undefined) {
         reject(ERR_SHIP_ID_EMPTY);
@@ -413,14 +492,33 @@ module.exports = function() {
           console.log(errStr);
           reject(errStr);
           return;
-        }          
+        }
       });
     });
   };
 
   // queries WG API for WoWS player stats
   // limited amount of requests/second
-  module.stats = function(playerId, shipId) {
+  module.stats = function(playerId, shipId, region) {
+    let wargamingApiUrl;
+    switch(region) {
+    case STR_REGION_ASIA:
+      wargamingApiUrl = STR_REGION_ASIA_URL;
+      break;
+    case STR_REGION_EU:
+      wargamingApiUrl = STR_REGION_EU_URL;
+      break;
+    case STR_REGION_NA:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    case STR_REGION_RU:
+      wargamingApiUrl = STR_REGION_RU_URL;
+      break;
+    default:
+      wargamingApiUrl = STR_REGION_NA_URL;
+      break;
+    }
+
     return new Promise((resolve, reject) => {
       if(playerId === undefined) {
         reject(ERR_PLAYER_ID_EMPTY);
@@ -440,7 +538,7 @@ module.exports = function() {
 
       wgApiLimiter.submit(
           request.get,
-          wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, 
+          wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam,
           (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
@@ -474,7 +572,7 @@ module.exports = function() {
           resolve(MSG_FIRST_PVP);
           return;
         }
-        
+
         // calculate needed data
         let kdTmp; // check for divide by 0
         if(pvpStats.battles - pvpStats.survived_battles === 0) {
@@ -508,24 +606,6 @@ module.exports = function() {
     }
     // run WG_MAX_REQUESTS command at once, send once per (1 second / WG_MAX_REQUESTS)
     wgApiLimiter = new Bottleneck(parseInt(process.env.WG_MAX_REQUESTS), 1000 / parseInt(process.env.WG_MAX_REQUESTS));
-
-    // init API URLs
-    switch(process.env.WOWS_REGION) {
-      case STR_REGION_ASIA:
-        wargamingApiUrl = 'https://api.worldofwarships.asia/wows/';
-        break;
-      case STR_REGION_EU:
-        wargamingApiUrl = 'https://api.worldofwarships.eu/wows/';
-        break;
-      case STR_REGION_NA:
-        wargamingApiUrl = 'https://api.worldofwarships.com/wows/';
-        break;
-      case STR_REGION_RU:
-        wargamingApiUrl = 'https://api.worldofwarships.ru/wows/';
-        break;
-      default:
-        throw new Error(ERR_WOWS_REGION_NOT_SET);
-    }
 
     if(process.env.WG_API_ID === undefined || process.env.WG_API_ID === '') {
       throw new Error(ERR_WG_API_ID_NOT_SET);

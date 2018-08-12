@@ -1,7 +1,7 @@
 {
-  "name": "wows-match-stats-discord-bot",
-  "version": "0.0.4",
-  "description": "A Discord bot that retrieves data of the players in the current World of Warships match.",
+  "name": "wows-discord-bot",
+  "version": "0.1.0",
+  "description": "A Discord bot built on discord.js that loads up stats for players.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -9,19 +9,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WhipeeDip/WoWS-Match-Stats-Discord-Bot.git"
+    "url": "git+https://github.com/WhipeeDip/WoWS-Discord-Bot.git"
   },
   "author": "Elliot Yoon",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/WhipeeDip/WoWS-Match-Stats-Discord-Bot/issues"
+    "url": "https://github.com/WhipeeDip/WoWS-Discord-Bot/issues"
   },
-  "homepage": "https://github.com/WhipeeDip/WoWS-Match-Stats-Discord-Bot#readme",
+  "homepage": "https://github.com/WhipeeDip/WoWS-Discord-Bot#readme",
   "dependencies": {
     "bottleneck": "^1.16.0",
-    "chokidar": "^2.0.2",
-    "discord.js": "^11.1.0",
-    "dotenv": "^5.0.1",
-    "request": "^2.81.0"
+    "discord.js": "^11.4.0",
+    "dotenv": "^6.0.0",
+    "eslint": "^5.3.0",
+    "request": "^2.88.0"
   }
 }

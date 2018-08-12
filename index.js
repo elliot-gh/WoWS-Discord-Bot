@@ -29,6 +29,13 @@ client.login(process.env.DISCORD_TOKEN);
 // log the logged in account
 client.on('ready', () => {
   console.log(util.format(CON_LOGGED_IN, client.user.username, client.user.discriminator, client.user.id));
+  client.user.setPresence({
+    'status': 'online',
+    'afk': false,
+    'game': {
+      'name': '!help'
+    }
+  });
 
   // load in wows_bot
   const wows_bot = require('./wows_bot.js')(client);

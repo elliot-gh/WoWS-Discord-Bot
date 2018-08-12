@@ -6,26 +6,28 @@
 const wgApi = require('./wg_api.js')();
 const util = require('util');
 const utilsStats = require('./utils_stats.js')();
-let replayMonitor;
 
 // contains the Discord bot
 // require() this and pass in the discord.js logged in client
 module.exports = function(client) {
   let module = {}; // this module
-  let wowsChannel; // the discord channel to send messages in, used by discord.js
 
   // constant values
   const CMD_WGSTATS_ARGS_MIN = 3;
   const CMD_WGSTATS_ARGS_PLAYER = 1;
   const CMD_WGSTATS_ARGS_SHIP = 2;
-  const CMD_WGSTATS_PREFIX_LENGTH = 8;
   const COLOR_CMD = 0x8C8F91; // discord message grey
   const COLOR_ERR = 0xFFA500; // orange
 
   // program strings
-  const STR_CMD_WGSTATS_PREFIX = '!wgstats';
-  const STR_CMD_WGSTATS_ARGS = '[user] [ship]';
-  const STR_CMD_WGSTATS_FULL = STR_CMD_WGSTATS_PREFIX + ' ' + STR_CMD_WGSTATS_ARGS;
+  const STR_CMD_HELP = '!help';
+  const STR_CMD_HELP_TITLE = 'Help';
+  const STR_CMD_WG_PREFIX = '!wg';
+  const STR_CMD_WG_FULL = '`!wg[na|eu|asia|ru] [user] [ship]`';
+  const STR_REGION_ASIA = 'asia';
+  const STR_REGION_EU = 'eu';
+  const STR_REGION_NA = 'na';
+  const STR_REGION_RU = 'ru';
 
   // message strings
   const MSG_STATS_RESULT = 'Ship Stats';
@@ -37,52 +39,44 @@ module.exports = function(client) {
   const ERR_COMMAND_FAILED = 'Command failed!'; // failure
   const ERR_COMMAND_FAILED_PREFIX = '**Command failed**: %s'; // failure with message
   const ERR_COMMAND_WARNING = '**Command warning:** %s\n\n%s\n'; // warning reason, full warning
-  const ERR_COMMAND_FAILED_INVALID_FORMAT = util.format('Invalid command format! The command is `%s`', STR_CMD_WGSTATS_FULL);
-  const ERR_DEFAULT_WOWS_CHANNEL_NOT_SET = 'DEFAULT_WOWS_CHANNEL was not set!';
+  const ERR_COMMAND_FAILED_INVALID_FORMAT = util.format('Invalid command format! The command is `%s`', STR_CMD_WG_FULL);
   const ERR_DURING_MSG_SEND = 'ERROR: Error while sending Discord message: %s';
-  const ERR_MATCH_MONITOR_ON_NOT_SET = 'MATCH_MONITOR_ON was not set!';
 
-  // inits the vars
-  (function initBot() {
-    client.user.setPresence({
-      'status': 'online',
-      'afk': false,
-      'game': {
-        'name': STR_CMD_WGSTATS_FULL
+  const wgHelp = function(channel) {
+    channel.send('', {
+      embed: {
+        title: STR_CMD_HELP_TITLE,
+        description: STR_CMD_WG_FULL,
+        color: COLOR_CMD
       }
     });
-
-    // make sure discord channel was set 
-    if(process.env.DEFAULT_WOWS_CHANNEL === undefined || process.env.DEFAULT_WOWS_CHANNEL === '') {
-      throw new Error(ERR_DEFAULT_WOWS_CHANNEL_NOT_SET);
-    }
-    wowsChannel = client.channels.find('name', process.env.DEFAULT_WOWS_CHANNEL);
-
-    // see if we want to watch replay 
-    if(process.env.REPLAY_MONITOR_ON === 'true') {
-      replayMonitor = require('./match_monitor.js')(wowsChannel);
-    } else if(process.env.REPLAY_MONITOR_ON !== 'false' || 
-        process.env.REPLAY_MONITOR_ON === undefined || process.env.REPLAY_MONITOR_ON === '') {
-      throw new Error(ERR_MATCH_MONITOR_ON_NOT_SET);
-    }
-  }) ();
+  };
 
   // ----- chat commands -----
   client.on('message', (msg) => {
     let msgContent = msg.content;
 
-    // !wgstats [account name] [ship name] will query stats for that player and ship
-    if(msgContent.substring(0, CMD_WGSTATS_PREFIX_LENGTH) === STR_CMD_WGSTATS_PREFIX) {
-      console.log(util.format(CON_CHAT_COMMAND), msgContent);
-
+    if(msgContent.startsWith(STR_CMD_HELP)) {
+      wgHelp(msg.channel);
+    } else if(msgContent.startsWith(STR_CMD_WG_PREFIX)) {
       let channel = msg.channel;
       let msgArray = msgContent.split(' '); // split by space
+      let region = msgArray[0].substring(STR_CMD_WG_PREFIX.length);
+      switch(region) {
+      case STR_REGION_NA:
+      case STR_REGION_EU:
+      case STR_REGION_ASIA:
+      case STR_REGION_RU:
+        break;
+      default:
+        return;
+      }
 
+      console.log(util.format(CON_CHAT_COMMAND), msgContent);
       if(msgArray.length < CMD_WGSTATS_ARGS_MIN) { // missing args
         channel.send('', {
           embed: {
             title: ERR_COMMAND_FAILED,
-            type: 'rich',
             description: ERR_COMMAND_FAILED_INVALID_FORMAT,
             color: COLOR_ERR
           }
@@ -107,27 +101,26 @@ module.exports = function(client) {
       let shipId; // ship ID of the requested ship name
       let actualShipName; // the actual ship name
       let searchShipIdMsg; // return value of searchShipId(); lets us know about typos
-      wgApi.searchPlayerId(playerName)
+      wgApi.searchPlayerId(playerName, region)
         .then((tmpPlayerId) => { // get player ID from name
           playerId = tmpPlayerId;
-          return wgApi.searchShipId(shipName);
+          return wgApi.searchShipId(shipName, region);
         })
         .then((tmpShipIdResult) => { // get ship ID from name
           shipId = tmpShipIdResult.id;
           actualShipName = tmpShipIdResult.name;
           searchShipIdMsg = tmpShipIdResult.message;
-          return wgApi.stats(playerId, shipId);
+          return wgApi.stats(playerId, shipId, region);
         })
         .then((stats) => { // get actual stats
           let statsMsg = utilsStats.formatStats(playerName, actualShipName, stats);
           if(searchShipIdMsg !== '') { // warning
             statsMsg = util.format(ERR_COMMAND_WARNING, searchShipIdMsg, statsMsg);
           }
-          
+
           channel.send('', {
             embed: {
               title: MSG_STATS_RESULT,
-              type: 'rich',
               description: statsMsg,
               color: COLOR_CMD
             }
@@ -144,7 +137,6 @@ module.exports = function(client) {
           channel.send('', {
             embed: {
               title: ERR_COMMAND_FAILED,
-              type: 'rich',
               description: rejectReason,
               color: COLOR_ERR
             }

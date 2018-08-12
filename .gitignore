@@ -61,3 +61,6 @@ typings/
 
 # copy of tempArenaInfo.json created by bot
 tempArenaInfo2.json
+
+# vscode stuff
+.vscode
