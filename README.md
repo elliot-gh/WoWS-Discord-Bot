@@ -21,7 +21,7 @@ This is currently no longer under active development.
 
 ## .env Configuration
 
-This bot supports either system environment variables or using the `.env` file.
+This bot supports either system environment variables or using the `.env` file. Rename `example.env` to `.env`.
 System environment variables will be used over the `.env` file.
 
 To use the `.env` file, simply type the value indicated after the equals sign in the `.env` file.
