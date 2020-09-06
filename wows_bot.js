@@ -57,8 +57,10 @@ module.exports = function(client) {
     let msgContent = msg.content;
 
     if(msgContent.startsWith(STR_CMD_HELP)) {
+      console.log(`Got message:\n\t${msgContent}`);
       wgHelp(msg.channel);
     } else if(msgContent.startsWith(STR_CMD_WG_PREFIX)) {
+      console.log(`Got message:\n\t${msgContent}`);
       let channel = msg.channel;
       let msgArray = msgContent.split(' '); // split by space
       let region = msgArray[0].substring(STR_CMD_WG_PREFIX.length);

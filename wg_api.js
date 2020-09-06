@@ -3,7 +3,6 @@
  * Description: Contains functions to interact with the Wargaming API.
  */
 
-const Bottleneck = require('bottleneck');
 const request = require('request');
 const util = require('util');
 const utilsStats = require('./utils_stats.js')();
@@ -12,7 +11,6 @@ const utilsStats = require('./utils_stats.js')();
 // just require() this
 module.exports = function() {
   let module = {}; // this module
-  let wgApiLimiter; // bottleneck for Wargaming API requests
   let wargamingApiId; // paramter with Wargaming API application ID
 
   // program strings
@@ -56,12 +54,11 @@ module.exports = function() {
   const ERR_WG_API_CONNECTION = 'ERROR: Error while contacting the Wargaming API: %s'; // the error
   const ERR_WG_API_ID_NOT_SET = 'WG_API_ID was not set!';
   const ERR_WG_API_RETURN = 'ERROR: Wargaming API returned the following error: %s %s'; // error code + error msg
-  const ERR_WG_MAX_REQUESTS_NOT_SET = 'WG_MAX_REQUESTS not set!';
   const WARN_MULT_FAILED = 'An error occurred while searching player names. Falling back to a slower method.';
   const WARN_NO_EXACT_MATCH_SHIP = 'An exact ship name match was not found; showing the closest result.';
 
   // takes in an array of player objects that at least consist of {name, id}
-  // limited amount of requests/second
+  // UNUSED
   module.searchMultiplePlayerIds = function(multPlayerNames, region) {
     let wargamingApiUrl;
     switch(region) {
@@ -94,7 +91,7 @@ module.exports = function() {
       let searchParam = '&search=';
 
       for(let nameIndex = 0; nameIndex < multPlayerNames.length; nameIndex++) {
-        if(!multPlayerNames.hasOwnProperty(nameIndex)) {
+        if(!Object.prototype.hasOwnProperty.call(multPlayerNames, nameIndex)) {
           continue;
         }
 
@@ -104,10 +101,7 @@ module.exports = function() {
         }
       }
 
-      wgApiLimiter.submit(
-          request.get,
-          wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam,
-          (error, response, body) => {
+      request.get(wargamingApiUrl + accountApi + wargamingApiId + searchParam + typeParam, (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
           console.log(errStr);
@@ -200,7 +194,7 @@ module.exports = function() {
           let totalPlayers = multPlayerNames.length;
 
           for(let playerIndex in multPlayerNames) {
-            if(!multPlayerNames.hasOwnProperty(playerIndex)) {
+            if(!Object.prototype.hasOwnProperty.call(multPlayerNames, playerIndex)) {
               continue;
             }
 
@@ -243,7 +237,6 @@ module.exports = function() {
   };
 
   // searches WG API for a player ID by name
-  // limited amount of requests/second
   module.searchPlayerId = function(playerName, region) {
     let wargamingApiUrl;
     switch(region) {
@@ -274,10 +267,7 @@ module.exports = function() {
       const accountApi = 'account/list/';
       const searchParam = '&search=' + playerName;
 
-      wgApiLimiter.submit(
-          request.get,
-          wargamingApiUrl + accountApi + wargamingApiId + searchParam,
-          (error, response, body) => {
+      request.get(wargamingApiUrl + accountApi + wargamingApiId + searchParam, (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
           console.log(errStr);
@@ -309,7 +299,6 @@ module.exports = function() {
   };
 
   // searches WG API for ship ID by name
-  // limited amount of requests/second
   module.searchShipId = function(shipName, region) {
     let wargamingApiUrl;
     switch(region) {
@@ -369,11 +358,8 @@ module.exports = function() {
           return;
         }
 
-        wgApiLimiter.submit(
-            request.get,
-            wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam + pageParam + currentPage,
-            (error, response, body) => {
-          if(error) {
+        request.get(wargamingApiUrl + encyclopediaApi + wargamingApiId + fieldsParam + pageParam + currentPage, (error, response, body) => {
+          if (error) {
             let errStr = util.format(ERR_WG_API_CONNECTION, error);
             console.log(errStr);
             reject(errStr);
@@ -382,7 +368,7 @@ module.exports = function() {
           }
 
           let jsonBody = JSON.parse(body);
-          if(jsonBody.status === 'error') {
+          if (jsonBody.status === 'error') {
             let errStr = util.format(ERR_WG_API_RETURN, jsonBody.error.code, jsonBody.error.message);
             console.log(errStr);
             reject(errStr);
@@ -393,18 +379,18 @@ module.exports = function() {
           // update total pages and check what page we're on
           pageTotal = jsonBody.meta.page_total;
           currentPage++;
-          if(currentPage >= (pageTotal + 1)) {
+          if (currentPage >= (pageTotal + 1)) {
             requestAgain = false;
           }
 
           let jsonData = jsonBody.data;
-          for(let shipIdKey in jsonData) { // iterate through every ship
-            if(!jsonData.hasOwnProperty(shipIdKey)) {
+          for (let shipIdKey in jsonData) { // iterate through every ship
+            if (!Object.prototype.hasOwnProperty.call(jsonData, shipIdKey)) {
               continue;
             }
 
             let actualShipName = jsonData[shipIdKey].name;
-            if(shipName === actualShipName) { // identical names
+            if (shipName === actualShipName) { // identical names
               console.log(util.format(CON_SHIP_TO_ID, actualShipName, shipIdKey));
               resolve({
                 'name': actualShipName,
@@ -415,9 +401,9 @@ module.exports = function() {
               return;
             } else { // use the lowest Levenshtein distance
               let levDist = utilsStats.levenshteinDistance(shipName, actualShipName);
-              if(topResultDist === -1 || levDist <= topResultDist) {
+              if (topResultDist === -1 || levDist <= topResultDist) {
                 topResultDist = levDist;
-                topResult =  {
+                topResult = {
                   'name': actualShipName,
                   'id': shipIdKey
                 };
@@ -432,7 +418,7 @@ module.exports = function() {
   };
 
   // searches WG API for ship name by ID
-  // limited amount of requests/second
+  // UNUSED
   module.searchShipName = function(shipId, region) {
     let wargamingApiUrl;
     switch(region) {
@@ -463,10 +449,7 @@ module.exports = function() {
       let searchParam = '&ship_id=' + shipId;
       let fieldsParam = '&fields=name';
 
-      wgApiLimiter.submit(
-          request.get,
-          wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam,
-          (error, response, body) => {
+      request.get(wargamingApiUrl + encyclopediaApi + wargamingApiId + searchParam + fieldsParam, (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
           console.log(errStr);
@@ -498,7 +481,6 @@ module.exports = function() {
   };
 
   // queries WG API for WoWS player stats
-  // limited amount of requests/second
   module.stats = function(playerId, shipId, region) {
     let wargamingApiUrl;
     switch(region) {
@@ -522,7 +504,7 @@ module.exports = function() {
     return new Promise((resolve, reject) => {
       if(playerId === undefined) {
         reject(ERR_PLAYER_ID_EMPTY);
-      } else if(playerId === undefined) {
+      } else if(shipId === undefined) {
         reject(ERR_SHIP_ID_EMPTY);
       }
 
@@ -536,10 +518,7 @@ module.exports = function() {
         shipParam = '&ship_id=' + shipId;
       }
 
-      wgApiLimiter.submit(
-          request.get,
-          wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam,
-          (error, response, body) => {
+      request.get(wargamingApiUrl + shipStatsApi + wargamingApiId + accountParam + shipParam + fieldsParam, (error, response, body) => {
         if(error) {
           let errStr = util.format(ERR_WG_API_CONNECTION, error);
           console.log(errStr);
@@ -595,18 +574,12 @@ module.exports = function() {
         resolve(stats);
         return;
       });
+
     });
   };
 
   // init bot
   (function initWgApis() {
-    // make sure WG API requests/second limit was set
-    if(process.env.WG_MAX_REQUESTS === undefined || process.env.WG_MAX_REQUESTS === '') {
-      throw new Error(ERR_WG_MAX_REQUESTS_NOT_SET);
-    }
-    // run WG_MAX_REQUESTS command at once, send once per (1 second / WG_MAX_REQUESTS)
-    wgApiLimiter = new Bottleneck(parseInt(process.env.WG_MAX_REQUESTS), 1000 / parseInt(process.env.WG_MAX_REQUESTS));
-
     if(process.env.WG_API_ID === undefined || process.env.WG_API_ID === '') {
       throw new Error(ERR_WG_API_ID_NOT_SET);
     }

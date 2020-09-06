@@ -1,12 +1,11 @@
 # WoWS-Discord-Bot
 
-A Discord bot built on [discord.js](https://discord.js.org/) that loads up stats for players.
+### This is currently no longer under active development.
 
-This is currently no longer under active development.
+A Discord bot built on [discord.js](https://discord.js.org/) that loads up stats for players.
 
 ## Planned Features
 
-* Rewrite to switch to async/await functions and Bottleneck v2.
 * Cache ship names to ID so lookup is faster.
 * Properly capitalize ship names for the user so it doesn't keep triggering a typo message.
 * Support other APIs, such as [Warships.Today](https://warships.today/).
@@ -29,7 +28,6 @@ Comments starting with the pound sign `#` are ignored.
 
 * `DISCORD_TOKEN`: A Discord bot token used by your bot to login. Get one from [here](https://discordapp.com/developers/applications/).
 * `WG_API_ID`: The API ID used by your bot to use the WGI API. Get one from [here](https://developers.wargaming.net/applications/).
-* `WG_MAX_REQUESTS`: The max amount of requests per second your bot is allowed to issue. If you don't know what it should be, leave it at 10. More detail about this limit is [here](https://developers.wargaming.net/documentation/guide/principles/).
 
 ## Known Bugs
 
@@ -44,7 +42,6 @@ This repository is licensed under the GNU GPL v3.0.
 
 Node.js Libraries:
 
-* [bottleneck (MIT License)](https://github.com/SGrondin/bottleneck)
 * [discord.js (Apache License 2.0)](https://discord.js.org/)
 * [dotenv (BSD 2-clause License)](https://github.com/motdotla/dotenv)
 * [eslint (MIT License)](https://www.npmjs.com/package/eslint)
