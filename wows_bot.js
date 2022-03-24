@@ -43,17 +43,17 @@ module.exports = function(client) {
   const ERR_DURING_MSG_SEND = 'ERROR: Error while sending Discord message: %s';
 
   const wgHelp = function(channel) {
-    channel.send('', {
-      embed: {
+    channel.send({
+      embeds: [{
         title: STR_CMD_HELP_TITLE,
         description: STR_CMD_WG_FULL,
         color: COLOR_CMD
-      }
+      }]
     });
   };
 
   // ----- chat commands -----
-  client.on('message', (msg) => {
+  client.on('messageCreate', (msg) => {
     let msgContent = msg.content;
 
     if(msgContent.startsWith(STR_CMD_HELP)) {
@@ -76,12 +76,12 @@ module.exports = function(client) {
 
       console.log(util.format(CON_CHAT_COMMAND), msgContent);
       if(msgArray.length < CMD_WGSTATS_ARGS_MIN) { // missing args
-        channel.send('', {
-          embed: {
+        channel.send({
+          embeds: [{
             title: ERR_COMMAND_FAILED,
             description: ERR_COMMAND_FAILED_INVALID_FORMAT,
             color: COLOR_ERR
-          }
+          }]
         })
           .catch((sendError) => {
             console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
@@ -120,12 +120,12 @@ module.exports = function(client) {
             statsMsg = util.format(ERR_COMMAND_WARNING, searchShipIdMsg, statsMsg);
           }
 
-          channel.send('', {
-            embed: {
+          channel.send({
+            embeds: [{
               title: MSG_STATS_RESULT,
               description: statsMsg,
               color: COLOR_CMD
-            }
+            }]
           })
             .catch((sendError) => {
               console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
@@ -136,12 +136,12 @@ module.exports = function(client) {
           // TODO: remove this or figure out something for duplication of errors in console
           console.log(util.format(ERR_COMMAND_FAILED_PREFIX, rejectReason));
 
-          channel.send('', {
-            embed: {
+          channel.send({
+            embeds: [{
               title: ERR_COMMAND_FAILED,
               description: rejectReason,
               color: COLOR_ERR
-            }
+            }]
           })
             .catch((sendError) => {
               console.log(util.format(ERR_DURING_MSG_SEND, sendError.message));
